@@ -65,19 +65,27 @@ export function Calendar({
   const year = viewDate.getFullYear()
   const month = viewDate.getMonth()
 
-  const prevMonth = () => {
+  const prevMonth = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setViewDate(new Date(year, month - 1, 1))
   }
 
-  const nextMonth = () => {
+  const nextMonth = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setViewDate(new Date(year, month + 1, 1))
   }
 
-  const prevYear = () => {
+  const prevYear = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setViewDate(new Date(year - 1, month, 1))
   }
 
-  const nextYear = () => {
+  const nextYear = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     setViewDate(new Date(year + 1, month, 1))
   }
 
@@ -143,12 +151,18 @@ export function Calendar({
     })
   }
 
-  const handleSelect = (dateStr: string, isDisabled: boolean) => {
+  const handleSelect = (dateStr: string, isDisabled: boolean, e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault()
+      e.stopPropagation()
+    }
     if (isDisabled) return
     onSelect?.(dateStr)
   }
 
-  const handleSelectToday = () => {
+  const handleSelectToday = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
     const isDisabled =
       (minDate ? todayYMD < minDate : false) ||
       (maxDate ? todayYMD > maxDate : false)
@@ -231,9 +245,9 @@ export function Calendar({
               key={cell.dateStr}
               type="button"
               disabled={cell.isDisabled}
-              onClick={() => handleSelect(cell.dateStr, cell.isDisabled)}
+              onClick={(e) => handleSelect(cell.dateStr, cell.isDisabled, e)}
               className={cn(
-                "h-7 w-7 mx-auto rounded-md text-xs font-normal flex items-center justify-center transition-colors relative",
+                "h-7 w-7 mx-auto rounded-md text-xs font-normal flex items-center justify-center transition-colors relative cursor-pointer",
                 !cell.isCurrentMonth && "text-muted-foreground/40",
                 cell.isCurrentMonth && !isSelected && "text-foreground hover:bg-accent hover:text-accent-foreground",
                 isSelected && "bg-primary text-primary-foreground font-semibold shadow-xs hover:bg-primary/90",
@@ -253,15 +267,19 @@ export function Calendar({
           <button
             type="button"
             onClick={handleSelectToday}
-            className="text-[11px] font-medium text-primary hover:underline transition-colors"
+            className="text-[11px] font-medium text-primary hover:underline transition-colors cursor-pointer"
           >
             Hari Ini
           </button>
           {onClear && (
             <button
               type="button"
-              onClick={onClear}
-              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline transition-colors"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onClear()
+              }}
+              className="text-[11px] text-muted-foreground hover:text-foreground hover:underline transition-colors cursor-pointer"
             >
               Reset
             </button>
