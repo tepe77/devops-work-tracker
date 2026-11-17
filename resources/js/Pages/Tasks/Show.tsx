@@ -15,6 +15,7 @@ import { Progress } from '@/Components/ui/progress';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
+import { DatePicker } from '@/Components/ui/date-picker';
 import {
     Dialog,
     DialogContent,
@@ -183,13 +184,13 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                                 <div className="space-y-1">
                                                     <Label className="text-xs">Tanggal Aktivitas</Label>
-                                                    <Input
-                                                        type="date"
+                                                    <DatePicker
                                                         value={updateForm.data.activity_date}
-                                                        onChange={(e) =>
-                                                            updateForm.setData('activity_date', e.target.value)
+                                                        onChange={(val) =>
+                                                            updateForm.setData('activity_date', val)
                                                         }
-                                                        className="h-8 text-xs"
+                                                        size="sm"
+                                                        placeholder="Pilih tanggal aktivitas"
                                                         required
                                                     />
                                                 </div>

@@ -12,6 +12,7 @@ import {
 import { Badge } from '@/Components/ui/badge';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { DatePicker } from '@/Components/ui/date-picker';
 import { Progress } from '@/Components/ui/progress';
 import {
     Table,
@@ -214,20 +215,23 @@ export default function Dashboard({ auth, metrics }: DashboardProps) {
                         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
                             <div className="flex items-center space-x-2 w-full sm:w-auto">
                                 <span className="text-[11px] text-muted-foreground font-medium shrink-0">Dari:</span>
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="h-8 text-xs flex-1 sm:w-36 bg-background"
+                                    onChange={setStartDate}
+                                    size="sm"
+                                    placeholder="Tanggal awal"
+                                    className="flex-1 sm:w-36"
                                 />
                             </div>
                             <div className="flex items-center space-x-2 w-full sm:w-auto">
                                 <span className="text-[11px] text-muted-foreground font-medium shrink-0">Sampai:</span>
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="h-8 text-xs flex-1 sm:w-36 bg-background"
+                                    onChange={setEndDate}
+                                    size="sm"
+                                    placeholder="Tanggal akhir"
+                                    min={startDate || undefined}
+                                    className="flex-1 sm:w-36"
                                 />
                             </div>
                             <div className="flex items-center space-x-2 w-full sm:w-auto pt-1 sm:pt-0">

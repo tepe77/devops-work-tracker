@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { DatePicker } from '@/Components/ui/date-picker';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Badge } from '@/Components/ui/badge';
@@ -157,20 +158,21 @@ export default function ProjectsIndex({ auth, projects }: ProjectsIndexProps) {
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="space-y-1">
                                         <Label className="text-xs">Mulai</Label>
-                                        <Input
-                                            type="date"
+                                        <DatePicker
                                             value={data.start_date}
-                                            onChange={(e) => setData('start_date', e.target.value)}
-                                            className="h-8 text-xs"
+                                            onChange={(val) => setData('start_date', val)}
+                                            size="sm"
+                                            placeholder="Tgl Mulai"
                                         />
                                     </div>
                                     <div className="space-y-1">
                                         <Label className="text-xs">Target</Label>
-                                        <Input
-                                            type="date"
+                                        <DatePicker
                                             value={data.due_date}
-                                            onChange={(e) => setData('due_date', e.target.value)}
-                                            className="h-8 text-xs"
+                                            onChange={(val) => setData('due_date', val)}
+                                            size="sm"
+                                            placeholder="Tgl Target"
+                                            min={data.start_date || undefined}
                                         />
                                     </div>
                                 </div>

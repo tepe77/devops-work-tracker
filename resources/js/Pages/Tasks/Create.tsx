@@ -14,6 +14,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
+import { DatePicker } from '@/Components/ui/date-picker';
 import { ArrowLeft, Save, Server } from 'lucide-react';
 
 interface TasksCreateProps extends PageProps {
@@ -191,12 +192,11 @@ export default function TasksCreate({ auth, categories, projects, assets }: Task
                                     <Label htmlFor="start_date" className="text-xs">
                                         Tanggal Mulai <span className="text-red-500">*</span>
                                     </Label>
-                                    <Input
+                                    <DatePicker
                                         id="start_date"
-                                        type="date"
                                         value={data.start_date}
-                                        onChange={(e) => setData('start_date', e.target.value)}
-                                        className="h-9 text-xs"
+                                        onChange={(val) => setData('start_date', val)}
+                                        placeholder="Pilih tanggal mulai"
                                         required
                                     />
                                     {errors.start_date && (
@@ -208,12 +208,12 @@ export default function TasksCreate({ auth, categories, projects, assets }: Task
                                     <Label htmlFor="due_date" className="text-xs">
                                         Target Selesai (Due Date)
                                     </Label>
-                                    <Input
+                                    <DatePicker
                                         id="due_date"
-                                        type="date"
                                         value={data.due_date}
-                                        onChange={(e) => setData('due_date', e.target.value)}
-                                        className="h-9 text-xs"
+                                        onChange={(val) => setData('due_date', val)}
+                                        placeholder="Pilih target selesai"
+                                        min={data.start_date || undefined}
                                     />
                                     {errors.due_date && (
                                         <p className="text-xs text-destructive">{errors.due_date}</p>

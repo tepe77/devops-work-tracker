@@ -11,6 +11,7 @@ import {
 } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
+import { DatePicker } from '@/Components/ui/date-picker';
 import { Badge } from '@/Components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/Components/ui/tabs';
 import {
@@ -176,11 +177,12 @@ export default function ReportsIndex({ auth, report, filters }: ReportsIndexProp
                         {currentTab === 'daily' && (
                             <div className="flex items-center space-x-2">
                                 <span className="text-xs font-medium">Pilih Tanggal:</span>
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={date}
-                                    onChange={(e) => setDate(e.target.value)}
-                                    className="h-8 text-xs w-40"
+                                    onChange={setDate}
+                                    size="sm"
+                                    placeholder="Pilih tanggal laporan"
+                                    className="w-44"
                                     required
                                 />
                             </div>
@@ -189,19 +191,22 @@ export default function ReportsIndex({ auth, report, filters }: ReportsIndexProp
                         {currentTab === 'weekly' && (
                             <div className="flex flex-wrap items-center gap-2">
                                 <span className="text-xs font-medium">Rentang Minggu:</span>
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="h-8 text-xs w-36"
+                                    onChange={setStartDate}
+                                    size="sm"
+                                    placeholder="Mulai"
+                                    className="w-36"
                                     required
                                 />
                                 <span className="text-xs text-muted-foreground">s/d</span>
-                                <Input
-                                    type="date"
+                                <DatePicker
                                     value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="h-8 text-xs w-36"
+                                    onChange={setEndDate}
+                                    size="sm"
+                                    placeholder="Selesai"
+                                    min={startDate || undefined}
+                                    className="w-36"
                                     required
                                 />
                             </div>
