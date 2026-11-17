@@ -17,9 +17,10 @@ class EvidencePolicy
         return $user->is_active;
     }
 
-    public function download(User $user, Evidence $evidence): bool
+    public function download(?User $user, Evidence $evidence): bool
     {
-        return $user->is_active;
+        // Allowed for all: authenticated users and executive management guests
+        return true;
     }
 
     public function create(User $user): bool

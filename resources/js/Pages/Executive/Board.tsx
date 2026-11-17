@@ -828,7 +828,7 @@ export default function ExecutiveBoard({
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                     {taskLevelEvidences.map((ev) => {
                                                         const isImg = ev.mime_type?.startsWith('image/');
-                                                        if (isImg && user) {
+                                                        if (isImg) {
                                                             return (
                                                                 <div
                                                                     key={ev.id}
@@ -864,36 +864,24 @@ export default function ExecutiveBoard({
                                                                 className="flex items-center justify-between rounded-md border border-border/80 bg-background/60 p-2.5 text-xs shadow-2xs"
                                                             >
                                                                 <div className="flex items-center space-x-2 truncate">
-                                                                    {isImg ? (
-                                                                        <ImageIcon className="w-4 h-4 text-primary shrink-0" />
-                                                                    ) : (
-                                                                        <FileText className="w-4 h-4 text-primary shrink-0" />
-                                                                    )}
+                                                                    <FileText className="w-4 h-4 text-primary shrink-0" />
                                                                     <div className="truncate">
                                                                         <p className="font-medium text-foreground truncate text-[11px]">{ev.original_name}</p>
                                                                         <p className="text-[10px] text-muted-foreground">
-                                                                            {Math.round(ev.file_size / 1024)} KB &bull; {ev.caption || (isImg ? 'Screenshot' : 'Dokumen')}
+                                                                            {Math.round(ev.file_size / 1024)} KB &bull; {ev.caption || 'Dokumen'}
                                                                         </p>
                                                                     </div>
                                                                 </div>
-                                                                {user ? (
-                                                                    <a
-                                                                        href={route('evidences.download', ev.id)}
-                                                                        target="_blank"
-                                                                        rel="noreferrer"
-                                                                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                                                                        title="Unduh file"
-                                                                    >
-                                                                        <Download className="w-3.5 h-3.5" />
-                                                                    </a>
-                                                                ) : (
-                                                                    <Link
-                                                                        href={route('login')}
-                                                                        className="text-[10px] text-primary hover:underline shrink-0"
-                                                                    >
-                                                                        Login
-                                                                    </Link>
-                                                                )}
+                                                                <a
+                                                                    href={route('evidences.download', ev.id)}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center space-x-1"
+                                                                    title="Unduh file"
+                                                                >
+                                                                    <Download className="w-3.5 h-3.5" />
+                                                                    <span className="text-[10px] font-medium">Unduh</span>
+                                                                </a>
                                                             </div>
                                                         );
                                                     })}
@@ -953,7 +941,7 @@ export default function ExecutiveBoard({
                                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                                                                         {u.evidences.map((ev) => {
                                                                             const isImg = ev.mime_type?.startsWith('image/');
-                                                                            if (isImg && user) {
+                                                                            if (isImg) {
                                                                                 return (
                                                                                     <div
                                                                                         key={ev.id}
@@ -986,39 +974,27 @@ export default function ExecutiveBoard({
                                                                             return (
                                                                                 <div
                                                                                     key={ev.id}
-                                                                                    className="flex items-center justify-between rounded-md border border-border/80 bg-background/60 p-2 text-xs shadow-2xs"
+                                                                                    className="flex items-center justify-between rounded-md border border-border/80 bg-background/60 p-2.5 text-xs shadow-2xs"
                                                                                 >
                                                                                     <div className="flex items-center space-x-2 truncate">
-                                                                                        {isImg ? (
-                                                                                            <ImageIcon className="w-4 h-4 text-primary shrink-0" />
-                                                                                        ) : (
-                                                                                            <FileText className="w-4 h-4 text-primary shrink-0" />
-                                                                                        )}
+                                                                                        <FileText className="w-4 h-4 text-primary shrink-0" />
                                                                                         <div className="truncate">
                                                                                             <p className="font-medium text-foreground truncate text-[11px]">{ev.original_name}</p>
                                                                                             <p className="text-[10px] text-muted-foreground">
-                                                                                                {Math.round(ev.file_size / 1024)} KB &bull; {ev.caption || (isImg ? 'Screenshot' : 'Dokumen')}
+                                                                                                {Math.round(ev.file_size / 1024)} KB &bull; {ev.caption || 'Dokumen'}
                                                                                             </p>
                                                                                         </div>
                                                                                     </div>
-                                                                                    {user ? (
-                                                                                        <a
-                                                                                            href={route('evidences.download', ev.id)}
-                                                                                            target="_blank"
-                                                                                            rel="noreferrer"
-                                                                                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                                                                                            title="Unduh file"
-                                                                                        >
-                                                                                            <Download className="w-3.5 h-3.5" />
-                                                                                        </a>
-                                                                                    ) : (
-                                                                                        <Link
-                                                                                            href={route('login')}
-                                                                                            className="text-[10px] text-primary hover:underline shrink-0"
-                                                                                        >
-                                                                                            Login
-                                                                                        </Link>
-                                                                                    )}
+                                                                                    <a
+                                                                                        href={route('evidences.download', ev.id)}
+                                                                                        target="_blank"
+                                                                                        rel="noreferrer"
+                                                                                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0 flex items-center space-x-1"
+                                                                                        title="Unduh file"
+                                                                                    >
+                                                                                        <Download className="w-3.5 h-3.5" />
+                                                                                        <span className="text-[10px] font-medium">Unduh</span>
+                                                                                    </a>
                                                                                 </div>
                                                                             );
                                                                         })}

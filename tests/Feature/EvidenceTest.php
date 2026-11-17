@@ -162,7 +162,7 @@ class EvidenceTest extends TestCase
         $response->assertHeader('Content-Disposition');
     }
 
-    public function test_guest_cannot_download_evidence(): void
+    public function test_guest_can_view_or_download_evidence_for_executive_board(): void
     {
         $file = UploadedFile::fake()->create('report.pdf', 100, 'application/pdf');
         $this->actingAs($this->admin)->post('/evidences', [
@@ -175,6 +175,7 @@ class EvidenceTest extends TestCase
         auth()->logout();
 
         $response = $this->get("/evidences/{$evidence->id}/download");
-        $response->assertRedirect('/login');
+        $response->assertOk();
+        $response->assertHeader('Content-Disposition');
     }
 }

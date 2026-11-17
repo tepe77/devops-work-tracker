@@ -19,9 +19,10 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Public Executive Board (Khusus Atasan / Management tanpa perlu login)
+// Public Executive Board & Evidence Access (Khusus Atasan / Management tanpa perlu login)
 Route::get('/board', [ExecutiveBoardController::class, 'index'])->name('executive.board');
 Route::get('/executive', fn() => redirect()->route('executive.board'));
+Route::get('/evidences/{evidence}/download', [EvidenceController::class, 'download'])->name('evidences.download');
 
 // Authenticated routes (Accessible by both Admin and Viewer unless restricted)
 Route::middleware(['auth', 'active'])->group(function () {
@@ -40,10 +41,7 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/reports/export', [ReportController::class, 'export'])->name('reports.export');
 
-    // 5. Evidence authorized download
-    Route::get('/evidences/{evidence}/download', [EvidenceController::class, 'download'])->name('evidences.download');
-
-    // 6. User Profile
+    // 5. User Profile
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

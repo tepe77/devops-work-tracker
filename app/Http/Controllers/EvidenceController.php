@@ -35,8 +35,6 @@ class EvidenceController extends Controller
 
     public function download(Request $request, Evidence $evidence): Response|StreamedResponse
     {
-        $this->authorize('download', $evidence);
-
         $inline = (bool) $request->query('inline', false);
 
         return $this->evidenceService->download($evidence, $inline);
