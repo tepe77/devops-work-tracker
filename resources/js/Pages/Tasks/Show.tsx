@@ -167,15 +167,14 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                     <DialogTrigger asChild>
                                         <Button size="sm" className="h-8 text-xs space-x-1.5 shadow-sm">
                                             <Plus className="w-3.5 h-3.5" />
-                                            <span>Tambah Update Harian</span>
+                                            <span>Catat Aktivitas / Progres</span>
                                         </Button>
                                     </DialogTrigger>
                                     <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
                                         <DialogHeader>
-                                            <DialogTitle>Catat Daily Activity Update</DialogTitle>
+                                            <DialogTitle>Catat Aktivitas / Progres Pekerjaan</DialogTitle>
                                             <DialogDescription className="text-xs">
-                                                Update akan dicatat ke linimasa dan status task {task.task_code} akan
-                                                diperbarui secara otomatis.
+                                                Catat aktivitas harian atau pekerjaan lampau (minggu kemarin). Data linimasa dan laporan (Daily/Weekly/Monthly) akan disesuaikan otomatis dengan tanggal aktivitas yang dipilih.
                                             </DialogDescription>
                                         </DialogHeader>
 
@@ -193,6 +192,9 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                                         placeholder="Pilih tanggal aktivitas"
                                                         required
                                                     />
+                                                    <p className="text-[10px] text-muted-foreground">
+                                                        Bisa pilih tanggal lampau
+                                                    </p>
                                                 </div>
 
                                                 <div className="space-y-1">

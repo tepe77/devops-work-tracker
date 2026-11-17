@@ -6,6 +6,7 @@ use App\Enums\TaskStatus;
 use App\Models\Task;
 use App\Models\TaskUpdate;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -53,23 +54,36 @@ class TaskProgressService
             // 2. Determine completed_at transition
             $completedAt = $task->completed_at;
             if ($status === TaskStatus::Completed && !$task->completed_at) {
-                $completedAt = now();
+                $activityDate = Carbon::parse($data['activity_date'], 'Asia/Jakarta');
+                $completedAt = $activityDate->isPast() && !$activityDate->isToday()
+                    ? $activityDate->endOfDay()
+                    : now();
             } elseif ($status !== TaskStatus::Completed && $task->completed_at) {
                 // Task is reopened
                 $completedAt = null;
             }
 
-            // 3. Update task
-            $task->update([
-                'status' => $status,
-                'progress_percent' => $progress,
-                'completed_at' => $completedAt,
-            ]);
+            // 3. Update task state if this update is the latest or equal chronologically
+            $latestExistingUpdate = $task->updates()
+                ->where('id', '!=', $update->id)
+                ->orderBy('activity_date', 'desc')
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            $isLatestUpdate = !$latestExistingUpdate || $data['activity_date'] >= $latestExistingUpdate->activity_date->toDateString();
+
+            if ($isLatestUpdate) {
+                $task->update([
+                    'status' => $status,
+                    'progress_percent' => $progress,
+                    'completed_at' => $completedAt,
+                ]);
+            }
 
             $newTaskState = [
-                'status' => $status->value,
-                'progress_percent' => $progress,
-                'completed_at' => $completedAt?->toIso8601String(),
+                'status' => $task->status->value,
+                'progress_percent' => $task->progress_percent,
+                'completed_at' => $task->completed_at?->toIso8601String(),
             ];
 
             // 4. Record audit log for task status/progress change

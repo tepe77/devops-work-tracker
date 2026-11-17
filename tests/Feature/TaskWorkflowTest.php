@@ -179,4 +179,38 @@ class TaskWorkflowTest extends TestCase
         ]);
         $response->assertSessionHasErrors('progress_percent');
     }
+
+    public function test_admin_can_record_backdated_activity_from_past_week(): void
+    {
+        $task = Task::create([
+            'task_code' => 'DWT-2026-0002',
+            'title' => 'Retroactive task',
+            'description' => 'Logging past activity',
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'priority' => 'medium',
+            'status' => 'backlog',
+            'progress_percent' => 0,
+            'start_date' => now()->subDays(10)->toDateString(),
+        ]);
+
+        $pastDate = now()->subDays(7)->toDateString();
+
+        $response = $this->actingAs($this->admin)->post("/tasks/{$task->id}/updates", [
+            'activity_date' => $pastDate,
+            'summary' => 'Pekerjaan minggu lalu',
+            'work_done' => 'Setup awal konfigurasi server',
+            'progress_percent' => 40,
+            'status' => 'in_progress',
+        ]);
+
+        $response->assertRedirect("/tasks/{$task->id}");
+        $response->assertSessionHas('success');
+
+        $task->refresh();
+        $this->assertEquals(TaskStatus::InProgress, $task->status);
+        $this->assertEquals(40, $task->progress_percent);
+        $this->assertCount(1, $task->updates);
+        $this->assertEquals($pastDate, $task->updates->first()->activity_date->toDateString());
+    }
 }
