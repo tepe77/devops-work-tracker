@@ -86,4 +86,34 @@ class ExecutiveBoardTest extends TestCase
             $page->where('filters.category_id', (string) $this->category->id)
         );
     }
+
+    public function test_executive_board_loads_evidences_with_tasks_and_updates(): void
+    {
+        $task = Task::first();
+        $update = $task->updates()->create([
+            'user_id' => $this->admin->id,
+            'activity_date' => now()->toDateString(),
+            'summary' => 'Initial failover test',
+            'work_done' => 'Configured replication stream',
+            'progress_percent' => 50,
+            'status' => TaskStatus::InProgress->value,
+        ]);
+
+        $task->evidences()->create([
+            'task_update_id' => $update->id,
+            'uploaded_by' => $this->admin->id,
+            'original_name' => 'failover_screenshot.webp',
+            'storage_path' => 'evidences/failover_screenshot.webp',
+            'mime_type' => 'image/webp',
+            'file_size' => 102400,
+            'caption' => 'Bukti failover berhasil',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get('/board');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => 
+            $page->has('inProgressTasks.0.updates.0.evidences', 1)
+        );
+    }
 }

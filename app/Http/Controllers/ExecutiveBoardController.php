@@ -21,36 +21,32 @@ class ExecutiveBoardController extends Controller
     {
         $metrics = $this->dashboardService->getMetrics();
 
+        $updateQuery = function ($q) {
+            $q->with('evidences.uploader')->orderBy('activity_date', 'desc')->orderBy('created_at', 'desc');
+        };
+
         // Tasks currently In Progress (Sedang Dikerjakan)
-        $inProgressTasks = Task::with(['category', 'creator', 'assets', 'updates' => function ($q) {
-            $q->orderBy('activity_date', 'desc')->orderBy('created_at', 'desc')->limit(1);
-        }])
+        $inProgressTasks = Task::with(['category', 'creator', 'assets', 'evidences.uploader', 'updates' => $updateQuery])
             ->where('status', TaskStatus::InProgress->value)
             ->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
             ->orderBy('updated_at', 'desc')
             ->get();
 
         // Tasks Blocked (Mengalami Kendala Teknis / Menunggu Tindakan)
-        $blockedTasks = Task::with(['category', 'creator', 'assets', 'updates' => function ($q) {
-            $q->orderBy('activity_date', 'desc')->orderBy('created_at', 'desc')->limit(1);
-        }])
+        $blockedTasks = Task::with(['category', 'creator', 'assets', 'evidences.uploader', 'updates' => $updateQuery])
             ->where('status', TaskStatus::Blocked->value)
             ->orderBy('updated_at', 'desc')
             ->get();
 
         // Recently Completed tasks (Pekerjaan yang Baru Selesai)
-        $recentlyCompleted = Task::with(['category', 'creator', 'updates' => function ($q) {
-            $q->orderBy('activity_date', 'desc')->orderBy('created_at', 'desc')->limit(1);
-        }])
+        $recentlyCompleted = Task::with(['category', 'creator', 'evidences.uploader', 'updates' => $updateQuery])
             ->where('status', TaskStatus::Completed->value)
             ->orderBy('completed_at', 'desc')
             ->limit(6)
             ->get();
 
         // All filterable tasks for the main interactive table
-        $query = Task::with(['category', 'creator', 'updates' => function ($q) {
-            $q->orderBy('activity_date', 'desc')->orderBy('created_at', 'desc');
-        }, 'assets']);
+        $query = Task::with(['category', 'creator', 'assets', 'evidences.uploader', 'updates' => $updateQuery]);
 
         if ($request->filled('status')) {
             $query->where('status', $request->input('status'));

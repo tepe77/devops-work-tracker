@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { PageProps, Task } from '@/types';
+import { Evidence, PageProps, Task } from '@/types';
 import ApplicationLogo from '@/Components/ApplicationLogo';
 import {
     Card,
@@ -37,11 +37,17 @@ import {
     Calendar,
     CheckCircle2,
     Clock,
+    Download,
+    ExternalLink,
     Eye,
+    FileText,
     Filter,
     HardDrive,
+    Image as ImageIcon,
     Layers,
     LogIn,
+    Maximize2,
+    Paperclip,
     Radio,
     RotateCcw,
     Search,
@@ -102,6 +108,7 @@ export default function ExecutiveBoard({
     const [selectedCategory, setSelectedCategory] = useState(filters.category_id || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+    const [previewImage, setPreviewImage] = useState<Evidence | null>(null);
 
     const completionRate = summary.total_tasks > 0
         ? Math.round((summary.completed / summary.total_tasks) * 100)
@@ -748,7 +755,7 @@ export default function ExecutiveBoard({
 
                 {/* Read-Only Task Details Modal for Atasan */}
                 <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-                    <DialogContent className="max-w-2xl max-h-[88vh] overflow-y-auto">
+                    <DialogContent className="max-w-3xl max-h-[88vh] overflow-y-auto">
                         {selectedTask && (
                             <>
                                 <DialogHeader>
@@ -808,6 +815,93 @@ export default function ExecutiveBoard({
                                         </div>
                                     )}
 
+                                    {/* Task-Level Attachments / Screenshots */}
+                                    {(() => {
+                                        const taskLevelEvidences = selectedTask.evidences?.filter((ev) => !ev.task_update_id) || [];
+                                        if (taskLevelEvidences.length === 0) return null;
+                                        return (
+                                            <div className="space-y-2 pt-2 border-t border-border/60">
+                                                <span className="font-semibold text-foreground flex items-center space-x-1.5">
+                                                    <Paperclip className="w-3.5 h-3.5 text-primary" />
+                                                    <span>Lampiran Utama Pekerjaan ({taskLevelEvidences.length}):</span>
+                                                </span>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {taskLevelEvidences.map((ev) => {
+                                                        const isImg = ev.mime_type?.startsWith('image/');
+                                                        if (isImg && user) {
+                                                            return (
+                                                                <div
+                                                                    key={ev.id}
+                                                                    onClick={() => setPreviewImage(ev)}
+                                                                    className="group relative flex flex-col rounded-md border border-border/80 bg-background/60 p-2 hover:bg-accent/40 transition-colors cursor-pointer overflow-hidden shadow-2xs"
+                                                                >
+                                                                    <div className="relative w-full h-28 rounded overflow-hidden bg-muted/50 mb-1.5 border border-border/40 flex items-center justify-center">
+                                                                        <img
+                                                                            src={route('evidences.download', ev.id) + '?inline=1'}
+                                                                            alt={ev.caption || ev.original_name}
+                                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                                                            loading="lazy"
+                                                                        />
+                                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1.5 text-white">
+                                                                            <Maximize2 className="w-4 h-4" />
+                                                                            <span className="text-[11px] font-medium">Klik Perbesar</span>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex items-center justify-between text-[11px] truncate">
+                                                                        <span className="font-medium text-foreground truncate">{ev.original_name}</span>
+                                                                        <span className="text-[10px] text-muted-foreground ml-1 shrink-0">{Math.round(ev.file_size / 1024)} KB</span>
+                                                                    </div>
+                                                                    {ev.caption && (
+                                                                        <p className="text-[10px] text-muted-foreground italic truncate mt-0.5">{ev.caption}</p>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <div
+                                                                key={ev.id}
+                                                                className="flex items-center justify-between rounded-md border border-border/80 bg-background/60 p-2.5 text-xs shadow-2xs"
+                                                            >
+                                                                <div className="flex items-center space-x-2 truncate">
+                                                                    {isImg ? (
+                                                                        <ImageIcon className="w-4 h-4 text-primary shrink-0" />
+                                                                    ) : (
+                                                                        <FileText className="w-4 h-4 text-primary shrink-0" />
+                                                                    )}
+                                                                    <div className="truncate">
+                                                                        <p className="font-medium text-foreground truncate text-[11px]">{ev.original_name}</p>
+                                                                        <p className="text-[10px] text-muted-foreground">
+                                                                            {Math.round(ev.file_size / 1024)} KB &bull; {ev.caption || (isImg ? 'Screenshot' : 'Dokumen')}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {user ? (
+                                                                    <a
+                                                                        href={route('evidences.download', ev.id)}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                                                        title="Unduh file"
+                                                                    >
+                                                                        <Download className="w-3.5 h-3.5" />
+                                                                    </a>
+                                                                ) : (
+                                                                    <Link
+                                                                        href={route('login')}
+                                                                        className="text-[10px] text-primary hover:underline shrink-0"
+                                                                    >
+                                                                        Login
+                                                                    </Link>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
+
                                     {/* Daily Activity Timeline */}
                                     <div>
                                         <span className="font-semibold text-foreground block mb-2">
@@ -818,7 +912,7 @@ export default function ExecutiveBoard({
                                                 {selectedTask.updates.map((u) => (
                                                     <div key={u.id} className="relative group">
                                                         <div className="absolute -left-[21px] top-1.5 w-2.5 h-2.5 rounded-full bg-primary" />
-                                                        <div className="rounded-lg border border-border/80 bg-card p-3 shadow-2xs space-y-1.5">
+                                                        <div className="rounded-lg border border-border/80 bg-card p-3 shadow-2xs space-y-2">
                                                             <div className="flex items-center justify-between">
                                                                 <span className="font-semibold text-foreground">
                                                                     {formatDate(u.activity_date)}
@@ -848,6 +942,89 @@ export default function ExecutiveBoard({
                                                                     {u.blocker}
                                                                 </div>
                                                             )}
+
+                                                            {/* Evidences / Screenshots for this update */}
+                                                            {u.evidences && u.evidences.length > 0 && (
+                                                                <div className="pt-2.5 mt-2 border-t border-border/60 space-y-1.5">
+                                                                    <span className="text-[11px] font-semibold text-foreground flex items-center space-x-1.5">
+                                                                        <Paperclip className="w-3 h-3 text-primary" />
+                                                                        <span>Bukti / Screenshot Terlampir ({u.evidences.length}):</span>
+                                                                    </span>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                                                                        {u.evidences.map((ev) => {
+                                                                            const isImg = ev.mime_type?.startsWith('image/');
+                                                                            if (isImg && user) {
+                                                                                return (
+                                                                                    <div
+                                                                                        key={ev.id}
+                                                                                        onClick={() => setPreviewImage(ev)}
+                                                                                        className="group relative flex flex-col rounded-md border border-border/80 bg-background/60 p-2 hover:bg-accent/40 transition-colors cursor-pointer overflow-hidden shadow-2xs"
+                                                                                    >
+                                                                                        <div className="relative w-full h-28 rounded overflow-hidden bg-muted/50 mb-1.5 border border-border/40 flex items-center justify-center">
+                                                                                            <img
+                                                                                                src={route('evidences.download', ev.id) + '?inline=1'}
+                                                                                                alt={ev.caption || ev.original_name}
+                                                                                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                                                                                                loading="lazy"
+                                                                                            />
+                                                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center space-x-1.5 text-white">
+                                                                                                <Maximize2 className="w-4 h-4" />
+                                                                                                <span className="text-[11px] font-medium">Klik Perbesar</span>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                        <div className="flex items-center justify-between text-[11px] truncate">
+                                                                                            <span className="font-medium text-foreground truncate">{ev.original_name}</span>
+                                                                                            <span className="text-[10px] text-muted-foreground ml-1 shrink-0">{Math.round(ev.file_size / 1024)} KB</span>
+                                                                                        </div>
+                                                                                        {ev.caption && (
+                                                                                            <p className="text-[10px] text-muted-foreground italic truncate mt-0.5">{ev.caption}</p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                );
+                                                                            }
+
+                                                                            return (
+                                                                                <div
+                                                                                    key={ev.id}
+                                                                                    className="flex items-center justify-between rounded-md border border-border/80 bg-background/60 p-2 text-xs shadow-2xs"
+                                                                                >
+                                                                                    <div className="flex items-center space-x-2 truncate">
+                                                                                        {isImg ? (
+                                                                                            <ImageIcon className="w-4 h-4 text-primary shrink-0" />
+                                                                                        ) : (
+                                                                                            <FileText className="w-4 h-4 text-primary shrink-0" />
+                                                                                        )}
+                                                                                        <div className="truncate">
+                                                                                            <p className="font-medium text-foreground truncate text-[11px]">{ev.original_name}</p>
+                                                                                            <p className="text-[10px] text-muted-foreground">
+                                                                                                {Math.round(ev.file_size / 1024)} KB &bull; {ev.caption || (isImg ? 'Screenshot' : 'Dokumen')}
+                                                                                            </p>
+                                                                                        </div>
+                                                                                    </div>
+                                                                                    {user ? (
+                                                                                        <a
+                                                                                            href={route('evidences.download', ev.id)}
+                                                                                            target="_blank"
+                                                                                            rel="noreferrer"
+                                                                                            className="p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                                                                                            title="Unduh file"
+                                                                                        >
+                                                                                            <Download className="w-3.5 h-3.5" />
+                                                                                        </a>
+                                                                                    ) : (
+                                                                                        <Link
+                                                                                            href={route('login')}
+                                                                                            className="text-[10px] text-primary hover:underline shrink-0"
+                                                                                        >
+                                                                                            Login
+                                                                                        </Link>
+                                                                                    )}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </div>
                                                     </div>
                                                 ))}
@@ -860,6 +1037,73 @@ export default function ExecutiveBoard({
                                     </div>
                                 </div>
                             </>
+                        )}
+                    </DialogContent>
+                </Dialog>
+
+                {/* Image Preview Lightbox Modal */}
+                <Dialog open={!!previewImage} onOpenChange={(open) => !open && setPreviewImage(null)}>
+                    <DialogContent className="max-w-4xl max-h-[92vh] overflow-y-auto p-4 sm:p-6">
+                        {previewImage && (
+                            <div className="space-y-4">
+                                <DialogHeader>
+                                    <div className="flex items-center space-x-2 text-primary">
+                                        <ImageIcon className="w-4 h-4" />
+                                        <span className="text-xs font-semibold uppercase tracking-wider">Preview Screenshot / Gambar</span>
+                                    </div>
+                                    <DialogTitle className="text-base font-bold text-foreground">
+                                        {previewImage.original_name}
+                                    </DialogTitle>
+                                    {previewImage.caption && (
+                                        <DialogDescription className="text-xs text-muted-foreground italic">
+                                            "{previewImage.caption}"
+                                        </DialogDescription>
+                                    )}
+                                </DialogHeader>
+
+                                <div className="relative rounded-lg overflow-hidden bg-black/95 flex items-center justify-center min-h-[220px] max-h-[65vh] p-2 border border-border">
+                                    <img
+                                        src={route('evidences.download', previewImage.id) + '?inline=1'}
+                                        alt={previewImage.caption || previewImage.original_name}
+                                        className="max-h-[62vh] max-w-full object-contain rounded"
+                                    />
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2 text-xs text-muted-foreground border-t border-border">
+                                    <div className="flex items-center space-x-3 text-[11px]">
+                                        <span>Ukuran: <strong>{Math.round(previewImage.file_size / 1024)} KB</strong></span>
+                                        <span>&bull;</span>
+                                        <span>Format: <strong>{previewImage.mime_type}</strong></span>
+                                        {previewImage.created_at && (
+                                            <>
+                                                <span>&bull;</span>
+                                                <span>{formatDateTime(previewImage.created_at)}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                        <a
+                                            href={route('evidences.download', previewImage.id) + '?inline=1'}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            <Button size="sm" variant="outline" className="h-8 text-xs space-x-1.5">
+                                                <ExternalLink className="w-3.5 h-3.5" />
+                                                <span>Buka Penuh</span>
+                                            </Button>
+                                        </a>
+                                        <a
+                                            href={route('evidences.download', previewImage.id)}
+                                            download
+                                        >
+                                            <Button size="sm" variant="default" className="h-8 text-xs space-x-1.5">
+                                                <Download className="w-3.5 h-3.5" />
+                                                <span>Unduh File</span>
+                                            </Button>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
                         )}
                     </DialogContent>
                 </Dialog>
