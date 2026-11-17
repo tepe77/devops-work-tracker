@@ -12,9 +12,9 @@ class AdminSeeder extends Seeder
 {
     public function run(): void
     {
-        $email = env('INITIAL_ADMIN_EMAIL', 'admin@devops.internal');
-        $name = env('INITIAL_ADMIN_NAME', 'DevOps Lead');
-        $password = env('INITIAL_ADMIN_PASSWORD', 'admin12345');
+        $email = env('INITIAL_ADMIN_EMAIL') ?: 'admin@devops.internal';
+        $name = env('INITIAL_ADMIN_NAME') ?: 'DevOps Lead';
+        $password = env('INITIAL_ADMIN_PASSWORD') ?: 'admin12345';
 
         if (!User::where('email', $email)->exists()) {
             $admin = User::create([
