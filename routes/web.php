@@ -60,6 +60,8 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         // Task Daily Activity Update
         Route::post('/tasks/{task}/updates', [TaskUpdateController::class, 'store'])->name('tasks.updates.store')->whereNumber('task');
+        Route::match(['put', 'patch'], '/tasks/{task}/updates/{update}', [TaskUpdateController::class, 'update'])->name('tasks.updates.update')->whereNumber('task')->whereNumber('update');
+        Route::delete('/tasks/{task}/updates/{update}', [TaskUpdateController::class, 'destroy'])->name('tasks.updates.destroy')->whereNumber('task')->whereNumber('update');
 
         // Infrastructure Assets Write Operations
         Route::get('/infrastructure/create', [InfrastructureAssetController::class, 'create'])->name('infrastructure.create');

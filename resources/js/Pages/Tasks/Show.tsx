@@ -53,6 +53,7 @@ interface TasksShowProps extends PageProps {
 export default function TasksShow({ auth, task }: TasksShowProps) {
     const user = auth.user;
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+    const [editingUpdate, setEditingUpdate] = useState<TaskUpdate | null>(null);
     const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
 
     // Form for Daily Activity Update
@@ -101,6 +102,18 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
     const handleDeleteTask = () => {
         if (confirm(`Apakah Anda yakin ingin mengarsipkan task ${task.task_code}?`)) {
             router.delete(route('tasks.destroy', task.id));
+        }
+    };
+
+    const handleDeleteUpdate = (update: TaskUpdate) => {
+        if (
+            confirm(
+                `Apakah Anda yakin ingin menghapus catatan histori pengerjaan tanggal ${formatDate(
+                    update.activity_date
+                )}? Status dan persentase progres pekerjaan akan disinkronkan ulang secara otomatis.`
+            )
+        ) {
+            router.delete(route('tasks.updates.destroy', [task.id, update.id]));
         }
     };
 
@@ -388,6 +401,33 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                                         <Badge variant="outline" className="text-[10px]">
                                                             {update.progress_percent}%
                                                         </Badge>
+
+                                                        {user?.is_admin && (
+                                                            <div className="flex items-center space-x-1 pl-1.5 border-l border-border">
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                                                                    title="Edit histori pengerjaan"
+                                                                    onClick={() => setEditingUpdate(update)}
+                                                                >
+                                                                    <Edit3 className="w-3.5 h-3.5" />
+                                                                    <span className="sr-only">Edit Histori</span>
+                                                                </Button>
+                                                                <Button
+                                                                    type="button"
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                                                    title="Hapus histori pengerjaan"
+                                                                    onClick={() => handleDeleteUpdate(update)}
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                    <span className="sr-only">Hapus Histori</span>
+                                                                </Button>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 </div>
 
@@ -439,19 +479,37 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                                 {update.evidences && update.evidences.length > 0 && (
                                                     <div className="pt-2 flex flex-wrap gap-2">
                                                         {update.evidences.map((ev) => (
-                                                            <a
+                                                            <div
                                                                 key={ev.id}
-                                                                href={route('evidences.download', ev.id)}
-                                                                target="_blank"
-                                                                rel="noreferrer"
                                                                 className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded bg-muted text-xs hover:bg-muted/80 transition-colors"
                                                             >
-                                                                <Paperclip className="w-3 h-3 text-primary" />
-                                                                <span className="truncate max-w-[150px]">
-                                                                    {ev.original_name}
-                                                                </span>
-                                                                <Download className="w-3 h-3 text-muted-foreground ml-1" />
-                                                            </a>
+                                                                <a
+                                                                    href={route('evidences.download', ev.id)}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    className="inline-flex items-center space-x-1 text-foreground hover:text-primary transition-colors"
+                                                                >
+                                                                    <Paperclip className="w-3 h-3 text-primary" />
+                                                                    <span className="truncate max-w-[150px]">
+                                                                        {ev.original_name}
+                                                                    </span>
+                                                                    <Download className="w-3 h-3 text-muted-foreground ml-1" />
+                                                                </a>
+                                                                {user?.is_admin && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            if (confirm(`Hapus file ${ev.original_name}?`)) {
+                                                                                router.delete(route('evidences.destroy', ev.id));
+                                                                            }
+                                                                        }}
+                                                                        className="text-muted-foreground hover:text-destructive ml-1 p-0.5"
+                                                                        title="Hapus file lampiran"
+                                                                    >
+                                                                        <Trash2 className="w-3 h-3" />
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         ))}
                                                     </div>
                                                 )}
@@ -762,6 +820,262 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                     </Card>
                 </div>
             </div>
+
+            {editingUpdate && (
+                <EditTaskUpdateDialog
+                    open={!!editingUpdate}
+                    update={editingUpdate}
+                    task={task}
+                    onClose={() => setEditingUpdate(null)}
+                />
+            )}
         </AuthenticatedLayout>
+    );
+}
+
+function EditTaskUpdateDialog({
+    task,
+    update,
+    open,
+    onClose,
+}: {
+    task: Task;
+    update: TaskUpdate;
+    open: boolean;
+    onClose: () => void;
+}) {
+    const formattedDate = update.activity_date
+        ? typeof update.activity_date === 'string' && update.activity_date.includes('T')
+            ? update.activity_date.split('T')[0]
+            : String(update.activity_date)
+        : '';
+
+    const { data, setData, post, processing, errors } = useForm({
+        _method: 'put',
+        activity_date: formattedDate,
+        summary: update.summary || '',
+        work_done: update.work_done || '',
+        result: update.result || '',
+        blocker: update.blocker || '',
+        next_action: update.next_action || '',
+        progress_percent: update.progress_percent,
+        status: update.status,
+        evidence_file: null as File | null,
+        evidence_caption: '',
+    });
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        post(route('tasks.updates.update', [task.id, update.id]), {
+            onSuccess: () => {
+                onClose();
+            },
+        });
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+            <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>Edit Histori / Catatan Pekerjaan</DialogTitle>
+                    <DialogDescription className="text-xs">
+                        Ubah tanggal pengerjaan, ringkasan, tindakan teknis, atau penyesuaian progres. Linimasa dan laporan akan disinkronkan ulang secara otomatis.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Date, Status & Progress */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-xs">Tanggal Aktivitas</Label>
+                            <DatePicker
+                                value={data.activity_date}
+                                onChange={(val) => setData('activity_date', val)}
+                                size="sm"
+                                placeholder="Pilih tanggal aktivitas"
+                                required
+                            />
+                            {errors.activity_date && (
+                                <p className="text-[10px] text-destructive">{errors.activity_date}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs">Status</Label>
+                            <select
+                                value={data.status}
+                                onChange={(e) => {
+                                    const newStatus = e.target.value as any;
+                                    setData('status', newStatus);
+                                    if (newStatus === 'completed') {
+                                        setData('progress_percent', 100);
+                                    } else if (newStatus === 'backlog') {
+                                        setData('progress_percent', 0);
+                                    } else if (data.progress_percent === 0 || data.progress_percent === 100) {
+                                        setData('progress_percent', 50);
+                                    }
+                                }}
+                                className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                required
+                            >
+                                <option value="in_progress">In Progress</option>
+                                <option value="blocked">Blocked</option>
+                                <option value="completed">Completed (100%)</option>
+                                <option value="backlog">Backlog (0%)</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                            {errors.status && (
+                                <p className="text-[10px] text-destructive">{errors.status}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs">
+                                Progress: {data.progress_percent}%
+                            </Label>
+                            <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={data.progress_percent}
+                                onChange={(e) =>
+                                    setData(
+                                        'progress_percent',
+                                        parseInt(e.target.value) || 0
+                                    )
+                                }
+                                className="h-8 text-xs"
+                                required
+                            />
+                            {errors.progress_percent && (
+                                <p className="text-[10px] text-destructive">{errors.progress_percent}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Summary */}
+                    <div className="space-y-1">
+                        <Label className="text-xs">Ringkasan Aktivitas (Summary) *</Label>
+                        <Input
+                            placeholder="Contoh: Menjalankan failover test pada PostgreSQL replica"
+                            value={data.summary}
+                            onChange={(e) => setData('summary', e.target.value)}
+                            className="h-8 text-xs"
+                            required
+                        />
+                        {errors.summary && (
+                            <p className="text-[10px] text-destructive">{errors.summary}</p>
+                        )}
+                    </div>
+
+                    {/* Work Done */}
+                    <div className="space-y-1">
+                        <Label className="text-xs">Tindakan Teknis (Work Done) *</Label>
+                        <Textarea
+                            placeholder="Tuliskan command yang dijalankan, konfigurasi file yang dimodifikasi, atau pengecekan service..."
+                            rows={3}
+                            value={data.work_done}
+                            onChange={(e) => setData('work_done', e.target.value)}
+                            className="text-xs"
+                            required
+                        />
+                        {errors.work_done && (
+                            <p className="text-[10px] text-destructive">{errors.work_done}</p>
+                        )}
+                    </div>
+
+                    {/* Result & Blocker */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1">
+                            <Label className="text-xs">Hasil Pekerjaan (Result)</Label>
+                            <Textarea
+                                placeholder="Contoh: Lag replikasi kembali normal < 10ms"
+                                rows={2}
+                                value={data.result}
+                                onChange={(e) => setData('result', e.target.value)}
+                                className="text-xs"
+                            />
+                            {errors.result && (
+                                <p className="text-[10px] text-destructive">{errors.result}</p>
+                            )}
+                        </div>
+
+                        <div className="space-y-1">
+                            <Label className="text-xs text-red-600 dark:text-red-400">
+                                Kendala / Blocker (Jika ada)
+                            </Label>
+                            <Textarea
+                                placeholder="Contoh: Menunggu approval firewall port 5432 dari tim network"
+                                rows={2}
+                                value={data.blocker}
+                                onChange={(e) => setData('blocker', e.target.value)}
+                                className="text-xs"
+                            />
+                            {errors.blocker && (
+                                <p className="text-[10px] text-destructive">{errors.blocker}</p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Next Action */}
+                    <div className="space-y-1">
+                        <Label className="text-xs">Rencana Tindak Lanjut (Next Action)</Label>
+                        <Input
+                            placeholder="Langkah yang akan dikerjakan pada hari berikutnya..."
+                            value={data.next_action}
+                            onChange={(e) => setData('next_action', e.target.value)}
+                            className="h-8 text-xs"
+                        />
+                        {errors.next_action && (
+                            <p className="text-[10px] text-destructive">{errors.next_action}</p>
+                        )}
+                    </div>
+
+                    {/* Optional Evidence Attachment */}
+                    <div className="space-y-2 pt-2 border-t border-border">
+                        <Label className="text-xs font-semibold">
+                            Tambah Lampiran Bukti Teknis (Opsional)
+                        </Label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <Input
+                                type="file"
+                                onChange={(e) =>
+                                    setData(
+                                        'evidence_file',
+                                        e.target.files ? e.target.files[0] : null
+                                    )
+                                }
+                                className="h-8 text-xs"
+                            />
+                            <Input
+                                placeholder="Keterangan lampiran..."
+                                value={data.evidence_caption}
+                                onChange={(e) =>
+                                    setData('evidence_caption', e.target.value)
+                                }
+                                className="h-8 text-xs"
+                            />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground">
+                            Format: Gambar (PNG, JPG, WebP, GIF - otomatis dikompresi) & Dokumen (PDF, TXT, LOG) maks 10 MB.
+                        </p>
+                    </div>
+
+                    <DialogFooter className="pt-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={onClose}
+                        >
+                            Batal
+                        </Button>
+                        <Button type="submit" size="sm" disabled={processing}>
+                            Simpan Perubahan
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }

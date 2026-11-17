@@ -213,4 +213,166 @@ class TaskWorkflowTest extends TestCase
         $this->assertCount(1, $task->updates);
         $this->assertEquals($pastDate, $task->updates->first()->activity_date->toDateString());
     }
+
+    public function test_admin_can_update_existing_task_activity(): void
+    {
+        $task = Task::create([
+            'task_code' => 'DWT-2026-0003',
+            'title' => 'Migration task',
+            'description' => 'Test edit update',
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'priority' => 'high',
+            'status' => 'backlog',
+            'progress_percent' => 0,
+            'start_date' => now()->toDateString(),
+        ]);
+
+        $update = TaskUpdate::create([
+            'task_id' => $task->id,
+            'user_id' => $this->admin->id,
+            'activity_date' => now()->subDay()->toDateString(),
+            'summary' => 'Initial summary',
+            'work_done' => 'Initial work done',
+            'progress_percent' => 25,
+            'status' => TaskStatus::InProgress,
+        ]);
+        $task->update(['status' => TaskStatus::InProgress, 'progress_percent' => 25]);
+
+        $response = $this->actingAs($this->admin)->put("/tasks/{$task->id}/updates/{$update->id}", [
+            'activity_date' => now()->subDays(2)->toDateString(),
+            'summary' => 'Updated summary with typo fixed',
+            'work_done' => 'Updated work done with accurate CLI commands',
+            'result' => 'Service verified running',
+            'blocker' => null,
+            'next_action' => 'Proceed to stage 2',
+            'progress_percent' => 60,
+            'status' => 'in_progress',
+        ]);
+
+        $response->assertRedirect("/tasks/{$task->id}");
+        $response->assertSessionHas('success');
+
+        $update->refresh();
+        $this->assertEquals('Updated summary with typo fixed', $update->summary);
+        $this->assertEquals(60, $update->progress_percent);
+        $this->assertEquals(now()->subDays(2)->toDateString(), $update->activity_date->toDateString());
+
+        $task->refresh();
+        $this->assertEquals(60, $task->progress_percent);
+        $this->assertEquals(TaskStatus::InProgress, $task->status);
+
+        // Audit log check
+        $this->assertDatabaseHas('audit_logs', [
+            'event' => 'task_update_modified',
+            'auditable_type' => TaskUpdate::class,
+            'auditable_id' => $update->id,
+        ]);
+    }
+
+    public function test_admin_can_delete_task_activity_and_task_reverts_state(): void
+    {
+        $task = Task::create([
+            'task_code' => 'DWT-2026-0004',
+            'title' => 'Cluster setup',
+            'description' => 'Test delete update',
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'priority' => 'high',
+            'status' => 'backlog',
+            'progress_percent' => 0,
+            'start_date' => now()->subDays(5)->toDateString(),
+        ]);
+
+        // First update: 40% in_progress on subDays(3)
+        $update1 = TaskUpdate::create([
+            'task_id' => $task->id,
+            'user_id' => $this->admin->id,
+            'activity_date' => now()->subDays(3)->toDateString(),
+            'summary' => 'Day 1 setup',
+            'work_done' => 'Configured nodes',
+            'progress_percent' => 40,
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        // Second update: 100% completed today
+        $update2 = TaskUpdate::create([
+            'task_id' => $task->id,
+            'user_id' => $this->admin->id,
+            'activity_date' => now()->toDateString(),
+            'summary' => 'Day 2 completion accidental',
+            'work_done' => 'Marked finished prematurely',
+            'progress_percent' => 100,
+            'status' => TaskStatus::Completed,
+        ]);
+        $task->update([
+            'status' => TaskStatus::Completed,
+            'progress_percent' => 100,
+            'completed_at' => now(),
+        ]);
+
+        // Delete the accidental completed update
+        $response = $this->actingAs($this->admin)->delete("/tasks/{$task->id}/updates/{$update2->id}");
+
+        $response->assertRedirect("/tasks/{$task->id}");
+        $response->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('task_updates', ['id' => $update2->id]);
+
+        $task->refresh();
+        // Task must revert to update1's state!
+        $this->assertEquals(TaskStatus::InProgress, $task->status);
+        $this->assertEquals(40, $task->progress_percent);
+        $this->assertNull($task->completed_at);
+
+        // Delete update1 as well: task should revert to backlog 0%
+        $this->actingAs($this->admin)->delete("/tasks/{$task->id}/updates/{$update1->id}");
+
+        $task->refresh();
+        $this->assertEquals(TaskStatus::Backlog, $task->status);
+        $this->assertEquals(0, $task->progress_percent);
+        $this->assertNull($task->completed_at);
+    }
+
+    public function test_viewer_cannot_update_or_delete_task_activity(): void
+    {
+        $viewer = User::factory()->create([
+            'role' => UserRole::Viewer,
+            'is_active' => true,
+        ]);
+
+        $task = Task::create([
+            'task_code' => 'DWT-2026-0005',
+            'title' => 'Viewer test',
+            'description' => 'Test permissions',
+            'category_id' => $this->category->id,
+            'created_by' => $this->admin->id,
+            'priority' => 'low',
+            'status' => 'in_progress',
+            'progress_percent' => 50,
+            'start_date' => now()->toDateString(),
+        ]);
+
+        $update = TaskUpdate::create([
+            'task_id' => $task->id,
+            'user_id' => $this->admin->id,
+            'activity_date' => now()->toDateString(),
+            'summary' => 'Admin update',
+            'work_done' => 'Work',
+            'progress_percent' => 50,
+            'status' => TaskStatus::InProgress,
+        ]);
+
+        $response = $this->actingAs($viewer)->put("/tasks/{$task->id}/updates/{$update->id}", [
+            'activity_date' => now()->toDateString(),
+            'summary' => 'Hacked summary',
+            'work_done' => 'Hacked work',
+            'progress_percent' => 80,
+            'status' => 'in_progress',
+        ]);
+        $response->assertForbidden();
+
+        $responseDel = $this->actingAs($viewer)->delete("/tasks/{$task->id}/updates/{$update->id}");
+        $responseDel->assertForbidden();
+    }
 }

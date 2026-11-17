@@ -21,4 +21,14 @@ class TaskUpdatePolicy
     {
         return $user->isAdmin() && $user->is_active;
     }
+
+    public function update(User $user, TaskUpdate $update): bool
+    {
+        return $user->isAdmin() && $user->is_active;
+    }
+
+    public function delete(User $user, TaskUpdate $update): bool
+    {
+        return $user->isAdmin() && $user->is_active;
+    }
 }
