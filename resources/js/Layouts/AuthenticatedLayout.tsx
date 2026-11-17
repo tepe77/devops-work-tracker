@@ -21,8 +21,8 @@ import {
     Radio,
     Eye,
 } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Badge } from '@/Components/ui/badge';
+import { Button } from '@/Components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -30,8 +30,8 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from '@/Components/ui/dropdown-menu';
+import { Alert, AlertDescription } from '@/Components/ui/alert';
 
 export default function AuthenticatedLayout({
     header,

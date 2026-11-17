@@ -12,6 +12,8 @@
         "skipLibCheck": true,
         "noEmit": true,
         "paths": {
+            "@/components/*": ["./resources/js/Components/*"],
+            "@/Components/*": ["./resources/js/Components/*"],
             "@/*": ["./resources/js/*"],
             "ziggy-js": ["./vendor/tightenco/ziggy"]
         }

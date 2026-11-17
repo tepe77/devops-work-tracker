@@ -13,6 +13,8 @@ export default defineConfig({
     ],
     resolve: {
         alias: {
+            '@/components': path.resolve(__dirname, './resources/js/Components'),
+            '@/Components': path.resolve(__dirname, './resources/js/Components'),
             '@': path.resolve(__dirname, './resources/js'),
             'ziggy-js': path.resolve(__dirname, './vendor/tightenco/ziggy'),
         },
