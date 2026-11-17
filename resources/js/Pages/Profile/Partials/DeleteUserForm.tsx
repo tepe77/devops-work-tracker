@@ -50,41 +50,35 @@ export default function DeleteUserForm({
     };
 
     return (
-        <section className={`space-y-6 ${className}`}>
+        <section className={`space-y-4 ${className}`}>
             <header>
-                <h2 className="text-lg font-medium text-gray-900">
-                    Delete Account
+                <h2 className="text-base font-bold text-destructive">
+                    Hapus Akun Pengguna
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-600">
-                    Once your account is deleted, all of its resources and data
-                    will be permanently deleted. Before deleting your account,
-                    please download any data or information that you wish to
-                    retain.
+                <p className="mt-1 text-xs text-muted-foreground">
+                    Setelah akun Anda dihapus, semua sumber daya dan sesi data Anda akan ditutup secara permanen.
                 </p>
             </header>
 
-            <DangerButton onClick={confirmUserDeletion}>
-                Delete Account
+            <DangerButton onClick={confirmUserDeletion} className="text-xs">
+                Hapus Akun Saya
             </DangerButton>
 
             <Modal show={confirmingUserDeletion} onClose={closeModal}>
                 <form onSubmit={deleteUser} className="p-6">
-                    <h2 className="text-lg font-medium text-gray-900">
-                        Are you sure you want to delete your account?
+                    <h2 className="text-base font-bold text-foreground">
+                        Apakah Anda yakin ingin menghapus akun ini?
                     </h2>
 
-                    <p className="mt-1 text-sm text-gray-600">
-                        Once your account is deleted, all of its resources and
-                        data will be permanently deleted. Please enter your
-                        password to confirm you would like to permanently delete
-                        your account.
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Tindakan ini tidak dapat dibatalkan. Masukkan password Anda saat ini untuk mengonfirmasi penghapusan permanen.
                     </p>
 
-                    <div className="mt-6">
+                    <div className="mt-5">
                         <InputLabel
                             htmlFor="password"
-                            value="Password"
+                            value="Password Saat Ini"
                             className="sr-only"
                         />
 
@@ -97,24 +91,24 @@ export default function DeleteUserForm({
                             onChange={(e) =>
                                 setData('password', e.target.value)
                             }
-                            className="mt-1 block w-3/4"
+                            className="mt-1 block w-3/4 text-xs"
                             isFocused
-                            placeholder="Password"
+                            placeholder="Password Anda"
                         />
 
                         <InputError
                             message={errors.password}
-                            className="mt-2"
+                            className="mt-2 text-xs"
                         />
                     </div>
 
-                    <div className="mt-6 flex justify-end">
-                        <SecondaryButton onClick={closeModal}>
-                            Cancel
+                    <div className="mt-6 flex justify-end gap-3">
+                        <SecondaryButton onClick={closeModal} className="text-xs">
+                            Batal
                         </SecondaryButton>
 
-                        <DangerButton className="ms-3" disabled={processing}>
-                            Delete Account
+                        <DangerButton className="ms-2 text-xs" disabled={processing}>
+                            Hapus Akun
                         </DangerButton>
                     </div>
                 </form>

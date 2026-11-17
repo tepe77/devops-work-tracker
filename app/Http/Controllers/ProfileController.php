@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Services\AuditLogService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,10 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        protected AuditLogService $auditLogService
+    ) {}
+
     /**
      * Display the user's profile form.
      */
@@ -29,15 +34,27 @@ class ProfileController extends Controller
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $oldValues = $user->only(['name', 'email']);
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        $user->fill($request->validated());
+
+        if ($user->isDirty('email')) {
+            $user->email_verified_at = null;
         }
 
-        $request->user()->save();
+        $user->save();
 
-        return Redirect::route('profile.edit');
+        $this->auditLogService->log(
+            event: 'user_updated',
+            model: $user,
+            oldValues: $oldValues,
+            newValues: $user->only(['name', 'email']),
+            metadata: ['source' => 'profile_self_update'],
+            userId: $user->id
+        );
+
+        return Redirect::route('profile.edit')->with('status', 'profile-updated');
     }
 
     /**
@@ -50,6 +67,14 @@ class ProfileController extends Controller
         ]);
 
         $user = $request->user();
+
+        $this->auditLogService->log(
+            event: 'user_deleted',
+            model: $user,
+            oldValues: $user->only(['name', 'email', 'role']),
+            metadata: ['source' => 'self_deletion'],
+            userId: $user->id
+        );
 
         Auth::logout();
 
