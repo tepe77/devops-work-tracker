@@ -82,7 +82,15 @@ interface ExecutiveBoardProps extends PageProps {
         total: number;
     };
     categories: Array<{ id: number; name: string }>;
+    todayPulse: {
+        date_formatted: string;
+        activities_count: number;
+        completed_count: number;
+        blocked_count: number;
+    };
     filters: {
+        period?: string;
+        sort_by?: string;
         status: string;
         category_id: string;
         search: string;
@@ -93,6 +101,7 @@ interface ExecutiveBoardProps extends PageProps {
 export default function ExecutiveBoard({
     auth,
     metrics,
+    todayPulse,
     inProgressTasks,
     blockedTasks,
     recentlyCompleted,
@@ -107,6 +116,8 @@ export default function ExecutiveBoard({
     const [search, setSearch] = useState(filters.search || '');
     const [selectedCategory, setSelectedCategory] = useState(filters.category_id || '');
     const [selectedStatus, setSelectedStatus] = useState(filters.status || '');
+    const [selectedPeriod, setSelectedPeriod] = useState(filters.period || 'all');
+    const [selectedSort, setSelectedSort] = useState(filters.sort_by || 'latest_activity');
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [previewImage, setPreviewImage] = useState<Evidence | null>(null);
 
@@ -114,11 +125,47 @@ export default function ExecutiveBoard({
         ? Math.round((summary.completed / summary.total_tasks) * 100)
         : 0;
 
+    const handlePeriodChange = (newPeriod: string) => {
+        setSelectedPeriod(newPeriod);
+        router.get(
+            route('executive.board'),
+            {
+                period: newPeriod,
+                sort_by: selectedSort,
+                search,
+                category_id: selectedCategory,
+                status: selectedStatus,
+            },
+            { preserveState: true }
+        );
+    };
+
+    const handleSortChange = (newSort: string) => {
+        setSelectedSort(newSort);
+        router.get(
+            route('executive.board'),
+            {
+                period: selectedPeriod,
+                sort_by: newSort,
+                search,
+                category_id: selectedCategory,
+                status: selectedStatus,
+            },
+            { preserveState: true }
+        );
+    };
+
     const handleFilterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         router.get(
             route('executive.board'),
-            { search, category_id: selectedCategory, status: selectedStatus },
+            {
+                period: selectedPeriod,
+                sort_by: selectedSort,
+                search,
+                category_id: selectedCategory,
+                status: selectedStatus,
+            },
             { preserveState: true }
         );
     };
@@ -127,7 +174,44 @@ export default function ExecutiveBoard({
         setSearch('');
         setSelectedCategory('');
         setSelectedStatus('');
+        setSelectedPeriod('all');
+        setSelectedSort('latest_activity');
         router.get(route('executive.board'), {}, { preserveState: true });
+    };
+
+    const getActivityBadge = (dateStr?: string) => {
+        if (!dateStr) return null;
+        const actDate = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        if (actDate === todayStr) {
+            return (
+                <Badge variant="success" className="text-[10px] space-x-1 font-semibold bg-emerald-100/90 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Update Hari Ini</span>
+                </Badge>
+            );
+        }
+
+        const act = new Date(actDate);
+        const today = new Date(todayStr);
+        const diffTime = today.getTime() - act.getTime();
+        const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+
+        if (diffDays === 1) {
+            return (
+                <Badge variant="secondary" className="text-[10px] font-medium">
+                    Kemarin
+                </Badge>
+            );
+        } else if (diffDays > 1 && diffDays <= 7) {
+            return (
+                <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                    {diffDays} hari lalu
+                </Badge>
+            );
+        }
+        return null;
     };
 
     const getPriorityBadge = (p: string) => {
@@ -212,33 +296,136 @@ export default function ExecutiveBoard({
 
             {/* Main Content Area */}
             <main className="flex-1 max-w-[1700px] w-full mx-auto px-3.5 sm:px-8 py-4 sm:py-6 space-y-4 sm:space-y-6">
-                {/* Notice banner for atasan */}
-                <div className="rounded-xl border border-blue-200 bg-blue-50/70 dark:border-blue-900/40 dark:bg-blue-950/20 p-4 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center space-x-3">
-                        <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 shrink-0">
-                            <Eye className="w-5 h-5" />
-                        </div>
-                        <div>
-                            <div className="font-semibold text-sm text-blue-950 dark:text-blue-200">
-                                Selamat Datang di DevOps Executive Board
-                            </div>
-                            <p className="text-xs text-blue-800 dark:text-blue-300">
-                                Halaman ini dirancang khusus agar Anda dapat memantau apa yang sedang dikerjakan, progres pengerjaan, serta kendala teknis secara langsung.
-                            </p>
-                        </div>
+                {/* Smart Hybrid Executive Control Toolbar */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card p-3 rounded-xl border border-border/80 shadow-xs">
+                    {/* Period Presets */}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-semibold text-muted-foreground mr-1 flex items-center space-x-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Periode:</span>
+                        </span>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedPeriod === 'all' ? 'default' : 'outline'}
+                            onClick={() => handlePeriodChange('all')}
+                            className="h-7 text-xs px-2.5"
+                        >
+                            Semua Aktif
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedPeriod === 'today' ? 'default' : 'outline'}
+                            onClick={() => handlePeriodChange('today')}
+                            className={`h-7 text-xs px-2.5 space-x-1.5 ${
+                                selectedPeriod === 'today'
+                                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                    : 'text-emerald-700 dark:text-emerald-400 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30'
+                            }`}
+                        >
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Hari Ini</span>
+                            {todayPulse.activities_count > 0 && (
+                                <span className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                    selectedPeriod === 'today'
+                                        ? 'bg-white/20 text-white'
+                                        : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'
+                                }`}>
+                                    {todayPulse.activities_count}
+                                </span>
+                            )}
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedPeriod === 'this_week' ? 'default' : 'outline'}
+                            onClick={() => handlePeriodChange('this_week')}
+                            className="h-7 text-xs px-2.5"
+                        >
+                            Minggu Ini
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={selectedPeriod === 'this_month' ? 'default' : 'outline'}
+                            onClick={() => handlePeriodChange('this_month')}
+                            className="h-7 text-xs px-2.5"
+                        >
+                            Bulan Ini
+                        </Button>
                     </div>
-                    <div className="flex items-center space-x-2 shrink-0">
-                        <span className="text-xs text-muted-foreground font-medium">Auto-Sync Data</span>
+
+                    {/* Sorting & Refresh */}
+                    <div className="flex items-center space-x-2">
+                        <span className="text-xs text-muted-foreground font-medium hidden md:inline">Urutkan:</span>
+                        <select
+                            value={selectedSort}
+                            onChange={(e) => handleSortChange(e.target.value)}
+                            className="h-7 rounded-md border border-input bg-background px-2 text-xs shadow-2xs font-medium focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                            <option value="latest_activity">Aktivitas Terkini (Default)</option>
+                            <option value="due_date">Deadline Terdekat</option>
+                            <option value="priority">Prioritas Tertinggi</option>
+                            <option value="created_at">Baru Dibuat</option>
+                        </select>
                         <Button
                             variant="outline"
                             size="sm"
-                            className="h-7 text-xs space-x-1 bg-white dark:bg-slate-900"
+                            className="h-7 text-xs space-x-1 shadow-2xs bg-background"
                             onClick={() => router.reload()}
+                            title="Segarkan data secara live"
                         >
                             <RotateCcw className="w-3 h-3" />
-                            <span>Segarkan</span>
+                            <span className="hidden sm:inline">Segarkan</span>
                         </Button>
                     </div>
+                </div>
+
+                {/* Today's Operational Pulse Bar */}
+                <div className="rounded-xl border border-border/80 bg-linear-to-r from-card via-card to-emerald-50/40 dark:to-emerald-950/20 p-3 sm:p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center space-x-2.5 sm:space-x-3">
+                        <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <Radio className="w-4 h-4 animate-pulse" />
+                        </div>
+                        <div>
+                            <div className="flex items-center space-x-2">
+                                <span className="font-bold text-xs sm:text-sm text-foreground">
+                                    Denyut Operasional Hari Ini
+                                </span>
+                                <span className="text-[11px] text-muted-foreground font-mono">
+                                    &bull; {todayPulse.date_formatted}
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                <span className="inline-flex items-center space-x-1 text-xs text-muted-foreground">
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">{todayPulse.activities_count}</span>
+                                    <span>Aktivitas Tercatat</span>
+                                </span>
+                                <span className="text-muted-foreground/40">&bull;</span>
+                                <span className="inline-flex items-center space-x-1 text-xs text-muted-foreground">
+                                    <span className="font-bold text-sky-600 dark:text-sky-400">{todayPulse.completed_count}</span>
+                                    <span>Tuntas Hari Ini</span>
+                                </span>
+                                <span className="text-muted-foreground/40">&bull;</span>
+                                <span className="inline-flex items-center space-x-1 text-xs text-muted-foreground">
+                                    <span className="font-bold text-red-600 dark:text-red-400">{todayPulse.blocked_count}</span>
+                                    <span>Kendala Aktif</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {selectedPeriod !== 'today' && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePeriodChange('today')}
+                            className="h-7 text-xs font-semibold text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 space-x-1 self-start sm:self-auto shrink-0"
+                        >
+                            <Sparkles className="w-3 h-3" />
+                            <span>Fokus Hari Ini</span>
+                        </Button>
+                    )}
                 </div>
 
                 {/* Overdue Warning Alert if any */}
@@ -424,11 +611,14 @@ export default function ExecutiveBoard({
                                             className="border border-border/80 shadow-xs hover:shadow-md hover:border-primary/40 transition-all cursor-pointer group flex flex-col justify-between bg-card"
                                         >
                                             <CardHeader className="p-4 pb-2">
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="font-mono text-xs font-bold text-primary group-hover:underline">
-                                                        {t.task_code}
-                                                    </span>
-                                                    <div className="flex items-center space-x-1.5">
+                                                <div className="flex items-center justify-between mb-1.5 gap-2">
+                                                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                                                        <span className="font-mono text-xs font-bold text-primary group-hover:underline">
+                                                            {t.task_code}
+                                                        </span>
+                                                        {getActivityBadge(latestUpdate?.activity_date)}
+                                                    </div>
+                                                    <div className="flex items-center space-x-1.5 shrink-0">
                                                         {getPriorityBadge(t.priority)}
                                                         <Badge variant="outline" className="text-[10px] font-mono">
                                                             {t.progress_percent}%
@@ -482,8 +672,21 @@ export default function ExecutiveBoard({
                                 })}
                             </div>
                         ) : (
-                            <div className="text-center py-12 text-xs text-muted-foreground">
-                                Tidak ada pekerjaan yang berstatus In Progress saat ini.
+                            <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-xl border border-dashed border-border p-6 space-y-3">
+                                <Activity className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                                <p className="font-medium text-foreground">
+                                    Tidak ada pekerjaan yang berstatus In Progress {selectedPeriod !== 'all' ? 'pada periode yang dipilih' : 'saat ini'}.
+                                </p>
+                                {selectedPeriod !== 'all' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handlePeriodChange('all')}
+                                        className="h-7 text-xs"
+                                    >
+                                        Tampilkan Semua Pekerjaan Aktif
+                                    </Button>
+                                )}
                             </div>
                         )}
                     </TabsContent>
@@ -501,14 +704,15 @@ export default function ExecutiveBoard({
                                             className="border-2 border-red-300 dark:border-red-900/60 shadow-xs hover:shadow-md transition-all cursor-pointer group bg-card"
                                         >
                                             <CardHeader className="p-4 pb-2">
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <div className="flex items-center space-x-2">
+                                                <div className="flex items-center justify-between mb-1.5 gap-2">
+                                                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                                                         <span className="font-mono text-xs font-bold text-red-600 dark:text-red-400">
                                                             {t.task_code}
                                                         </span>
+                                                        {getActivityBadge(latestUpdate?.activity_date)}
                                                         {getPriorityBadge(t.priority)}
                                                     </div>
-                                                    <Badge variant="destructive" className="text-[10px]">
+                                                    <Badge variant="destructive" className="text-[10px] shrink-0">
                                                         TERKENDALA
                                                     </Badge>
                                                 </div>
@@ -570,11 +774,14 @@ export default function ExecutiveBoard({
                                             className="border border-border/80 shadow-xs hover:shadow-md hover:border-emerald-500/40 transition-all cursor-pointer group bg-card"
                                         >
                                             <CardHeader className="p-4 pb-2">
-                                                <div className="flex items-center justify-between mb-1.5">
-                                                    <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
-                                                        {t.task_code}
-                                                    </span>
-                                                    <Badge variant="success" className="text-[10px]">
+                                                <div className="flex items-center justify-between mb-1.5 gap-2">
+                                                    <div className="flex items-center space-x-1.5 flex-wrap gap-y-1">
+                                                        <span className="font-mono text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                                            {t.task_code}
+                                                        </span>
+                                                        {getActivityBadge(t.completed_at || latestUpdate?.activity_date)}
+                                                    </div>
+                                                    <Badge variant="success" className="text-[10px] shrink-0">
                                                         100% SELESAI
                                                     </Badge>
                                                 </div>
@@ -608,8 +815,21 @@ export default function ExecutiveBoard({
                                 })}
                             </div>
                         ) : (
-                            <div className="text-center py-12 text-xs text-muted-foreground">
-                                Belum ada pekerjaan yang selesai.
+                            <div className="text-center py-12 text-xs text-muted-foreground bg-card rounded-xl border border-dashed border-border p-6 space-y-3">
+                                <CheckCircle2 className="w-8 h-8 mx-auto text-muted-foreground/40" />
+                                <p className="font-medium text-foreground">
+                                    Belum ada pekerjaan yang selesai {selectedPeriod !== 'all' ? 'pada periode yang dipilih' : 'saat ini'}.
+                                </p>
+                                {selectedPeriod !== 'all' && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handlePeriodChange('all')}
+                                        className="h-7 text-xs"
+                                    >
+                                        Tampilkan Semua Periode
+                                    </Button>
+                                )}
                             </div>
                         )}
                     </TabsContent>
@@ -687,6 +907,7 @@ export default function ExecutiveBoard({
                                             <TableHead className="w-24">Prioritas</TableHead>
                                             <TableHead className="w-28">Status</TableHead>
                                             <TableHead className="w-28">Progress</TableHead>
+                                            <TableHead className="w-36">Aktivitas Terakhir</TableHead>
                                             <TableHead className="w-28">Target Selesai</TableHead>
                                             <TableHead className="w-20 text-right">Aksi</TableHead>
                                         </TableRow>
@@ -721,6 +942,14 @@ export default function ExecutiveBoard({
                                                             <Progress value={t.progress_percent} className="h-1.5 w-20" />
                                                         </div>
                                                     </TableCell>
+                                                    <TableCell>
+                                                        <div className="space-y-1">
+                                                            <span className="text-xs text-muted-foreground font-medium block">
+                                                                {t.updates?.[0]?.activity_date ? formatDate(t.updates[0].activity_date) : '-'}
+                                                            </span>
+                                                            {getActivityBadge(t.updates?.[0]?.activity_date)}
+                                                        </div>
+                                                    </TableCell>
                                                     <TableCell className="text-xs text-muted-foreground font-medium">
                                                         {t.due_date ? formatDate(t.due_date) : '-'}
                                                     </TableCell>
@@ -741,8 +970,8 @@ export default function ExecutiveBoard({
                                             ))
                                         ) : (
                                             <TableRow>
-                                                <TableCell colSpan={8} className="text-center py-12 text-xs text-muted-foreground">
-                                                    Tidak ada pekerjaan yang cocok dengan pencarian.
+                                                <TableCell colSpan={9} className="text-center py-12 text-xs text-muted-foreground">
+                                                    Tidak ada pekerjaan yang cocok dengan pencarian atau periode ini.
                                                 </TableCell>
                                             </TableRow>
                                         )}
@@ -750,6 +979,27 @@ export default function ExecutiveBoard({
                                 </Table>
                             </CardContent>
                         </Card>
+
+                        {/* Pagination Links */}
+                        {tasks.links && tasks.links.length > 3 && (
+                            <div className="flex justify-center items-center space-x-1 pt-2">
+                                {tasks.links.map((link, idx) => (
+                                    <Link
+                                        key={idx}
+                                        href={link.url || '#'}
+                                        preserveState
+                                        className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                                            link.active
+                                                ? 'bg-primary text-primary-foreground'
+                                                : link.url
+                                                    ? 'text-muted-foreground hover:bg-muted'
+                                                    : 'text-muted-foreground/40 cursor-not-allowed pointer-events-none'
+                                        }`}
+                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                    />
+                                ))}
+                            </div>
+                        )}
                     </TabsContent>
                 </Tabs>
 

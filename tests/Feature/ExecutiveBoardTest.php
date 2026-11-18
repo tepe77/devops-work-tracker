@@ -116,4 +116,18 @@ class ExecutiveBoardTest extends TestCase
             $page->has('inProgressTasks.0.updates.0.evidences', 1)
         );
     }
+
+    public function test_executive_board_supports_period_filter_today_and_sorting(): void
+    {
+        $response = $this->get('/board?period=today&sort_by=latest_activity');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => 
+            $page->where('filters.period', 'today')
+                ->where('filters.sort_by', 'latest_activity')
+                ->has('todayPulse')
+                ->has('todayPulse.activities_count')
+                ->has('todayPulse.date_formatted')
+        );
+    }
 }
