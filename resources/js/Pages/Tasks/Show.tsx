@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { PageProps, Task, TaskUpdate } from '@/types';
+import { Evidence, PageProps, Task, TaskUpdate } from '@/types';
 import {
     Card,
     CardContent,
@@ -16,6 +16,7 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { DatePicker } from '@/Components/ui/date-picker';
+import { ConfirmDialog } from '@/Components/ui/confirm-dialog';
 import {
     Dialog,
     DialogContent,
@@ -29,6 +30,7 @@ import {
     Activity,
     AlertCircle,
     AlertTriangle,
+    Archive,
     ArrowLeft,
     Calendar,
     CheckCircle2,
@@ -55,6 +57,9 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
     const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
     const [editingUpdate, setEditingUpdate] = useState<TaskUpdate | null>(null);
     const [evidenceDialogOpen, setEvidenceDialogOpen] = useState(false);
+    const [archiveTaskOpen, setArchiveTaskOpen] = useState(false);
+    const [deletingUpdate, setDeletingUpdate] = useState<TaskUpdate | null>(null);
+    const [deletingEvidence, setDeletingEvidence] = useState<Evidence | null>(null);
 
     // Form for Daily Activity Update
     const today = new Date().toISOString().split('T')[0];
@@ -99,21 +104,19 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
         });
     };
 
-    const handleDeleteTask = () => {
-        if (confirm(`Apakah Anda yakin ingin mengarsipkan task ${task.task_code}?`)) {
-            router.delete(route('tasks.destroy', task.id));
+    const handleConfirmArchiveTask = () => {
+        router.delete(route('tasks.destroy', task.id));
+    };
+
+    const handleConfirmDeleteUpdate = () => {
+        if (deletingUpdate) {
+            router.delete(route('tasks.updates.destroy', [task.id, deletingUpdate.id]));
         }
     };
 
-    const handleDeleteUpdate = (update: TaskUpdate) => {
-        if (
-            confirm(
-                `Apakah Anda yakin ingin menghapus catatan histori pengerjaan tanggal ${formatDate(
-                    update.activity_date
-                )}? Status dan persentase progres pekerjaan akan disinkronkan ulang secara otomatis.`
-            )
-        ) {
-            router.delete(route('tasks.updates.destroy', [task.id, update.id]));
+    const handleConfirmDeleteEvidence = () => {
+        if (deletingEvidence) {
+            router.delete(route('evidences.destroy', deletingEvidence.id));
         }
     };
 
@@ -420,8 +423,8 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                                                     variant="ghost"
                                                                     size="sm"
                                                                     className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                                                                    title="Hapus histori pengerjaan"
-                                                                    onClick={() => handleDeleteUpdate(update)}
+                                                                    title="Hapus catatan histori (Permanen)"
+                                                                    onClick={() => setDeletingUpdate(update)}
                                                                 >
                                                                     <Trash2 className="w-3.5 h-3.5" />
                                                                     <span className="sr-only">Hapus Histori</span>
@@ -498,13 +501,9 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                                                 {user?.is_admin && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => {
-                                                                            if (confirm(`Hapus file ${ev.original_name}?`)) {
-                                                                                router.delete(route('evidences.destroy', ev.id));
-                                                                            }
-                                                                        }}
+                                                                        onClick={() => setDeletingEvidence(ev)}
                                                                         className="text-muted-foreground hover:text-destructive ml-1 p-0.5"
-                                                                        title="Hapus file lampiran"
+                                                                        title="Hapus file lampiran (Permanen)"
                                                                     >
                                                                         <Trash2 className="w-3 h-3" />
                                                                     </button>
@@ -653,11 +652,8 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                                         size="sm"
                                                         variant="ghost"
                                                         className="h-7 text-destructive hover:bg-destructive/10"
-                                                        onClick={() => {
-                                                            if (confirm('Hapus file evidence ini?')) {
-                                                                router.delete(route('evidences.destroy', ev.id));
-                                                            }
-                                                        }}
+                                                        title="Hapus file lampiran (Permanen)"
+                                                        onClick={() => setDeletingEvidence(ev)}
                                                     >
                                                         <Trash2 className="w-3 h-3" />
                                                     </Button>
@@ -691,10 +687,11 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-7 w-7 p-0 text-destructive"
-                                        onClick={handleDeleteTask}
+                                        className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                        title="Arsipkan Pekerjaan (Soft Delete)"
+                                        onClick={() => setArchiveTaskOpen(true)}
                                     >
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <Archive className="w-3.5 h-3.5" />
                                     </Button>
                                 </div>
                             )}
@@ -829,6 +826,54 @@ export default function TasksShow({ auth, task }: TasksShowProps) {
                     onClose={() => setEditingUpdate(null)}
                 />
             )}
+
+            {/* Archive Task Confirmation Dialog (Soft Delete) */}
+            <ConfirmDialog
+                open={archiveTaskOpen}
+                onClose={() => setArchiveTaskOpen(false)}
+                onConfirm={handleConfirmArchiveTask}
+                title={`Arsipkan Pekerjaan: ${task.task_code}?`}
+                variant="archive"
+                badgeText="Arsipkan (Soft Delete)"
+                description={
+                    <span>
+                        Pekerjaan <strong>{task.task_code} - {task.title}</strong> akan <strong>diarsipkan</strong> dan disembunyikan dari daftar pekerjaan aktif. Seluruh catatan linimasa histori pengerjaan, aset terkait, dan berkas lampiran <strong>tetap tersimpan secara aman</strong> di database untuk kebutuhan audit dan laporan.
+                    </span>
+                }
+                confirmText="Ya, Arsipkan Pekerjaan"
+            />
+
+            {/* Delete Activity Update Confirmation Dialog (Hard Delete) */}
+            <ConfirmDialog
+                open={!!deletingUpdate}
+                onClose={() => setDeletingUpdate(null)}
+                onConfirm={handleConfirmDeleteUpdate}
+                title="Hapus Catatan Histori Pengerjaan?"
+                variant="destructive"
+                badgeText="Hapus Permanen"
+                description={
+                    <span>
+                        Catatan aktivitas tanggal <strong>{deletingUpdate ? formatDate(deletingUpdate.activity_date) : ''}</strong> akan <strong>dihapus secara permanen</strong> dari sistem beserta lampirannya. Status dan persentase progres pekerjaan akan disinkronkan ulang secara otomatis berdasarkan catatan kronologis sebelumnya.
+                    </span>
+                }
+                confirmText="Ya, Hapus Permanen"
+            />
+
+            {/* Delete Evidence File Confirmation Dialog (Hard Delete) */}
+            <ConfirmDialog
+                open={!!deletingEvidence}
+                onClose={() => setDeletingEvidence(null)}
+                onConfirm={handleConfirmDeleteEvidence}
+                title={`Hapus File Bukti Teknis: ${deletingEvidence?.original_name}?`}
+                variant="destructive"
+                badgeText="Hapus Permanen"
+                description={
+                    <span>
+                        File berkas <strong>{deletingEvidence?.original_name}</strong> akan <strong>dihapus secara permanen</strong> dari media penyimpanan server private. Tindakan ini tidak dapat dibatalkan.
+                    </span>
+                }
+                confirmText="Ya, Hapus File Permanen"
+            />
         </AuthenticatedLayout>
     );
 }

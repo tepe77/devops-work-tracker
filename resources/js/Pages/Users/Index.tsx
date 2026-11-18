@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps, User } from '@/types';
@@ -12,6 +13,7 @@ import {
 import { Card, CardContent } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
+import { ConfirmDialog } from '@/Components/ui/confirm-dialog';
 import { Edit3, PlusCircle, Trash2, UserPlus, Users } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -25,9 +27,10 @@ interface UsersIndexProps extends PageProps {
 
 export default function UsersIndex({ auth, users }: UsersIndexProps) {
     const currentUser = auth.user;
+    const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-    const handleDelete = (userToDelete: User) => {
-        if (confirm(`Apakah Anda yakin ingin menghapus akun ${userToDelete.name}?`)) {
+    const handleConfirmDelete = () => {
+        if (userToDelete) {
             router.delete(route('users.destroy', userToDelete.id));
         }
     };
@@ -110,7 +113,8 @@ export default function UsersIndex({ auth, users }: UsersIndexProps) {
                                                     size="sm"
                                                     variant="ghost"
                                                     className="h-7 w-7 p-0 text-destructive"
-                                                    onClick={() => handleDelete(u)}
+                                                    title="Hapus Akun Pengguna"
+                                                    onClick={() => setUserToDelete(u)}
                                                 >
                                                     <Trash2 className="w-3.5 h-3.5" />
                                                 </Button>
@@ -123,6 +127,22 @@ export default function UsersIndex({ auth, users }: UsersIndexProps) {
                     </Table>
                 </CardContent>
             </Card>
+
+            {/* Permanent Deletion Dialog */}
+            <ConfirmDialog
+                open={!!userToDelete}
+                onClose={() => setUserToDelete(null)}
+                onConfirm={handleConfirmDelete}
+                title={`Hapus Akun Pengguna: ${userToDelete?.name}?`}
+                variant="destructive"
+                badgeText="Hapus Permanen"
+                description={
+                    <span>
+                        Akun <strong>{userToDelete?.name}</strong> ({userToDelete?.email}) akan <strong>dihapus secara permanen</strong> dari sistem. Jika Anda hanya ingin mencabut akses masuk tanpa menghapus data, Anda dapat mengubah statusnya menjadi <strong>Nonaktif</strong> melalui menu edit.
+                    </span>
+                }
+                confirmText="Ya, Hapus Akun Permanen"
+            />
         </AuthenticatedLayout>
     );
 }

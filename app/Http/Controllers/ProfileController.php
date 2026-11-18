@@ -54,7 +54,9 @@ class ProfileController extends Controller
             userId: $user->id
         );
 
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        return Redirect::route('profile.edit')
+            ->with('success', 'Informasi profil berhasil diperbarui.')
+            ->with('status', 'profile-updated');
     }
 
     /**

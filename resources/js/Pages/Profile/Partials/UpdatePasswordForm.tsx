@@ -1,10 +1,18 @@
-import InputError from '@/Components/InputError';
-import InputLabel from '@/Components/InputLabel';
-import PrimaryButton from '@/Components/PrimaryButton';
-import TextInput from '@/Components/TextInput';
-import { Transition } from '@headlessui/react';
-import { useForm } from '@inertiajs/react';
 import { FormEventHandler, useRef } from 'react';
+import { useForm } from '@inertiajs/react';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardFooter,
+    CardHeader,
+    CardTitle,
+} from '@/Components/ui/card';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Button } from '@/Components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/Components/ui/alert';
+import { AlertCircle, CheckCircle2, KeyRound, Lock, Save } from 'lucide-react';
 
 export default function UpdatePasswordForm({
     className = '',
@@ -34,13 +42,13 @@ export default function UpdatePasswordForm({
         put(route('password.update'), {
             preserveScroll: true,
             onSuccess: () => reset(),
-            onError: (errors) => {
-                if (errors.password) {
+            onError: (errs) => {
+                if (errs.password) {
                     reset('password', 'password_confirmation');
                     passwordInput.current?.focus();
                 }
 
-                if (errors.current_password) {
+                if (errs.current_password) {
                     reset('current_password');
                     currentPasswordInput.current?.focus();
                 }
@@ -48,102 +56,129 @@ export default function UpdatePasswordForm({
         });
     };
 
+    const hasErrors = Object.keys(errors).length > 0;
+
     return (
-        <section className={className}>
-            <header>
-                <h2 className="text-base font-bold text-foreground">
-                    Perbarui Password Akun
-                </h2>
-
-                <p className="mt-1 text-xs text-muted-foreground">
-                    Pastikan akun Anda menggunakan kombinasi password yang kuat dan aman.
-                </p>
-            </header>
-
-            <form onSubmit={updatePassword} className="mt-5 space-y-4">
-                <div>
-                    <InputLabel
-                        htmlFor="current_password"
-                        value="Password Saat Ini"
-                        className="text-xs font-semibold"
-                    />
-
-                    <TextInput
-                        id="current_password"
-                        ref={currentPasswordInput}
-                        value={data.current_password}
-                        onChange={(e) =>
-                            setData('current_password', e.target.value)
-                        }
-                        type="password"
-                        className="mt-1 block w-full text-xs"
-                        autoComplete="current-password"
-                    />
-
-                    <InputError
-                        message={errors.current_password}
-                        className="mt-1 text-xs"
-                    />
+        <Card className={`shadow-sm border-border ${className}`}>
+            <CardHeader className="pb-4 border-b border-border/60">
+                <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <KeyRound className="w-4 h-4" />
+                    </div>
+                    <div>
+                        <CardTitle className="text-base font-semibold text-foreground">
+                            Perbarui Password Akun
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                            Gunakan kombinasi minimal 8 karakter dengan huruf, angka, dan simbol untuk keamanan maksimal
+                        </CardDescription>
+                    </div>
                 </div>
+            </CardHeader>
 
-                <div>
-                    <InputLabel htmlFor="password" value="Password Baru" className="text-xs font-semibold" />
+            <form onSubmit={updatePassword}>
+                <CardContent className="space-y-4 pt-5">
+                    {/* Error Notification Alert */}
+                    {hasErrors && (
+                        <Alert variant="destructive" className="text-xs shadow-xs">
+                            <AlertCircle className="h-4 w-4" />
+                            <AlertTitle className="text-xs font-semibold">Gagal Memperbarui Password</AlertTitle>
+                            <AlertDescription className="text-xs">
+                                Periksa kembali password lama atau konfirmasi password baru yang Anda masukkan.
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
-                    <TextInput
-                        id="password"
-                        ref={passwordInput}
-                        value={data.password}
-                        onChange={(e) => setData('password', e.target.value)}
-                        type="password"
-                        className="mt-1 block w-full text-xs"
-                        autoComplete="new-password"
-                    />
+                    {/* Success Notification Alert */}
+                    {recentlySuccessful && (
+                        <Alert variant="success" className="text-xs shadow-xs">
+                            <CheckCircle2 className="h-4 w-4" />
+                            <AlertTitle className="text-xs font-semibold">Password Berhasil Diperbarui</AlertTitle>
+                            <AlertDescription className="text-xs">
+                                Kredensial keamanan akun Anda telah berhasil diganti.
+                            </AlertDescription>
+                        </Alert>
+                    )}
 
-                    <InputError message={errors.password} className="mt-1 text-xs" />
-                </div>
+                    <div className="space-y-1.5">
+                        <Label htmlFor="current_password" className="text-xs font-medium flex items-center space-x-1.5">
+                            <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>Password Saat Ini *</span>
+                        </Label>
+                        <Input
+                            id="current_password"
+                            ref={currentPasswordInput}
+                            value={data.current_password}
+                            onChange={(e) => setData('current_password', e.target.value)}
+                            type="password"
+                            autoComplete="current-password"
+                            className="text-xs h-9"
+                            placeholder="Masukkan password akun yang aktif"
+                            required
+                        />
+                        {errors.current_password && (
+                            <p className="text-xs text-destructive flex items-center space-x-1 mt-1">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                <span>{errors.current_password}</span>
+                            </p>
+                        )}
+                    </div>
 
-                <div>
-                    <InputLabel
-                        htmlFor="password_confirmation"
-                        value="Konfirmasi Password Baru"
-                        className="text-xs font-semibold"
-                    />
+                    <div className="space-y-1.5">
+                        <Label htmlFor="password" className="text-xs font-medium flex items-center space-x-1.5">
+                            <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>Password Baru *</span>
+                        </Label>
+                        <Input
+                            id="password"
+                            ref={passwordInput}
+                            value={data.password}
+                            onChange={(e) => setData('password', e.target.value)}
+                            type="password"
+                            autoComplete="new-password"
+                            className="text-xs h-9"
+                            placeholder="Minimal 8 karakter"
+                            required
+                        />
+                        {errors.password && (
+                            <p className="text-xs text-destructive flex items-center space-x-1 mt-1">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                <span>{errors.password}</span>
+                            </p>
+                        )}
+                    </div>
 
-                    <TextInput
-                        id="password_confirmation"
-                        value={data.password_confirmation}
-                        onChange={(e) =>
-                            setData('password_confirmation', e.target.value)
-                        }
-                        type="password"
-                        className="mt-1 block w-full text-xs"
-                        autoComplete="new-password"
-                    />
+                    <div className="space-y-1.5">
+                        <Label htmlFor="password_confirmation" className="text-xs font-medium flex items-center space-x-1.5">
+                            <KeyRound className="w-3.5 h-3.5 text-muted-foreground" />
+                            <span>Konfirmasi Password Baru *</span>
+                        </Label>
+                        <Input
+                            id="password_confirmation"
+                            value={data.password_confirmation}
+                            onChange={(e) => setData('password_confirmation', e.target.value)}
+                            type="password"
+                            autoComplete="new-password"
+                            className="text-xs h-9"
+                            placeholder="Ulangi password baru"
+                            required
+                        />
+                        {errors.password_confirmation && (
+                            <p className="text-xs text-destructive flex items-center space-x-1 mt-1">
+                                <AlertCircle className="w-3.5 h-3.5" />
+                                <span>{errors.password_confirmation}</span>
+                            </p>
+                        )}
+                    </div>
+                </CardContent>
 
-                    <InputError
-                        message={errors.password_confirmation}
-                        className="mt-1 text-xs"
-                    />
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                    <PrimaryButton disabled={processing} className="text-xs">
-                        Simpan Password Baru
-                    </PrimaryButton>
-
-                    <Transition
-                        show={recentlySuccessful}
-                        enter="transition ease-in-out"
-                        enterFrom="opacity-0"
-                        leave="transition ease-in-out"
-                        leaveTo="opacity-0"
-                    >
-                        <p className="text-xs font-medium text-emerald-600">
-                            Password berhasil diperbarui.
-                        </p>
-                    </Transition>
-                </div>
+                <CardFooter className="flex items-center justify-end border-t border-border/60 p-4 bg-muted/10">
+                    <Button type="submit" size="sm" disabled={processing} className="space-x-1.5 shadow-xs">
+                        <Save className="w-3.5 h-3.5" />
+                        <span>Simpan Password Baru</span>
+                    </Button>
+                </CardFooter>
             </form>
-        </section>
+        </Card>
     );
 }

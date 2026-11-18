@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { InfrastructureAsset, PageProps } from '@/types';
@@ -10,6 +11,7 @@ import {
 } from '@/Components/ui/card';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
+import { ConfirmDialog } from '@/Components/ui/confirm-dialog';
 import {
     Table,
     TableBody,
@@ -19,6 +21,7 @@ import {
     TableRow,
 } from '@/Components/ui/table';
 import {
+    Archive,
     ArrowLeft,
     CheckSquare,
     Edit3,
@@ -35,11 +38,10 @@ interface InfrastructureShowProps extends PageProps {
 
 export default function InfrastructureShow({ auth, asset }: InfrastructureShowProps) {
     const user = auth.user;
+    const [confirmArchiveOpen, setConfirmArchiveOpen] = useState(false);
 
-    const handleDelete = () => {
-        if (confirm(`Apakah Anda yakin ingin mengarsipkan aset ${asset.name}?`)) {
-            router.delete(route('infrastructure.destroy', asset.id));
-        }
+    const handleConfirmArchive = () => {
+        router.delete(route('infrastructure.destroy', asset.id));
     };
 
     const getEnvBadgeVariant = (env: string) => {
@@ -188,10 +190,11 @@ export default function InfrastructureShow({ auth, asset }: InfrastructureShowPr
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        className="h-7 w-7 p-0 text-destructive"
-                                        onClick={handleDelete}
+                                        className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                        title="Arsipkan Aset (Soft Delete)"
+                                        onClick={() => setConfirmArchiveOpen(true)}
                                     >
-                                        <Trash2 className="w-3.5 h-3.5" />
+                                        <Archive className="w-3.5 h-3.5" />
                                     </Button>
                                 </div>
                             )}
@@ -254,6 +257,22 @@ export default function InfrastructureShow({ auth, asset }: InfrastructureShowPr
                     </Card>
                 </div>
             </div>
+
+            {/* Archive Asset Confirmation Dialog (Soft Delete) */}
+            <ConfirmDialog
+                open={confirmArchiveOpen}
+                onClose={() => setConfirmArchiveOpen(false)}
+                onConfirm={handleConfirmArchive}
+                title={`Arsipkan Aset Infrastruktur: ${asset.name}?`}
+                variant="archive"
+                badgeText="Arsipkan (Soft Delete)"
+                description={
+                    <span>
+                        Aset infrastruktur <strong>{asset.name}</strong> ({asset.ip_address || asset.hostname || asset.asset_type}) akan <strong>diarsipkan</strong> dan disembunyikan dari daftar aset aktif. Seluruh catatan pekerjaan atau insiden terkait aset ini <strong>tidak akan hilang</strong> dan tetap tercatat dalam riwayat sistem.
+                    </span>
+                }
+                confirmText="Ya, Arsipkan Aset"
+            />
         </AuthenticatedLayout>
     );
 }

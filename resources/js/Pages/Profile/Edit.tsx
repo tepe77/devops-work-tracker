@@ -1,27 +1,36 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { PageProps } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import DeleteUserForm from './Partials/DeleteUserForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
-import { Card, CardContent } from '@/Components/ui/card';
 import { UserCircle } from 'lucide-react';
+import { Badge } from '@/Components/ui/badge';
 
 export default function Edit({
     mustVerifyEmail,
     status,
 }: PageProps<{ mustVerifyEmail: boolean; status?: string }>) {
+    const user = usePage<PageProps>().props.auth.user;
+
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex items-center space-x-2">
-                    <UserCircle className="w-5 h-5 text-primary" />
+                <div className="flex items-center space-x-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <UserCircle className="w-5 h-5" />
+                    </div>
                     <div>
-                        <h2 className="font-semibold text-lg text-foreground leading-tight">
-                            Profil Pengguna
-                        </h2>
+                        <div className="flex items-center space-x-2">
+                            <h2 className="font-semibold text-lg text-foreground leading-tight">
+                                Profil Pengguna: {user.name}
+                            </h2>
+                            <Badge variant={user.is_admin ? 'default' : 'secondary'} className="text-[10px]">
+                                {user.is_admin ? 'DevOps Engineer (Admin)' : 'Management (Viewer)'}
+                            </Badge>
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                            Kelola informasi akun pribadi dan kredensial keamanan Anda
+                            Kelola informasi profil akun pribadi, keamanan kredensial, dan preferensi akun Anda
                         </p>
                     </div>
                 </div>
@@ -29,28 +38,15 @@ export default function Edit({
         >
             <Head title="Profil Pengguna - DevOps Work Tracker" />
 
-            <div className="space-y-6 max-w-4xl">
-                <Card className="shadow-xs">
-                    <CardContent className="p-6">
-                        <UpdateProfileInformationForm
-                            mustVerifyEmail={mustVerifyEmail}
-                            status={status}
-                            className="max-w-xl"
-                        />
-                    </CardContent>
-                </Card>
+            <div className="space-y-6 max-w-3xl mx-auto">
+                <UpdateProfileInformationForm
+                    mustVerifyEmail={mustVerifyEmail}
+                    status={status}
+                />
 
-                <Card className="shadow-xs">
-                    <CardContent className="p-6">
-                        <UpdatePasswordForm className="max-w-xl" />
-                    </CardContent>
-                </Card>
+                <UpdatePasswordForm />
 
-                <Card className="shadow-xs border-destructive/20">
-                    <CardContent className="p-6">
-                        <DeleteUserForm className="max-w-xl" />
-                    </CardContent>
-                </Card>
+                <DeleteUserForm />
             </div>
         </AuthenticatedLayout>
     );

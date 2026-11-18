@@ -126,6 +126,6 @@ class TaskController extends Controller
 
         $this->taskService->deleteTask($task, $request->user());
 
-        return redirect()->route('tasks.index')->with('success', "Task {$task->task_code} telah diarsipkan/dihapus.");
+        return redirect()->route('tasks.index')->with('success', "Pekerjaan {$task->task_code} berhasil diarsipkan.");
     }
 }
