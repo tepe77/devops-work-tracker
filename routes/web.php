@@ -19,9 +19,11 @@ Route::get('/', function () {
     return redirect()->route('dashboard');
 });
 
-// Public Executive Board & Evidence Access (Khusus Atasan / Management tanpa perlu login)
-Route::get('/board', [ExecutiveBoardController::class, 'index'])->name('executive.board');
-Route::get('/executive', fn() => redirect()->route('executive.board'));
+// Public Executive Board & Evidence Access (Khusus Atasan / Management via Link Akses Harian Unik)
+Route::get('/board/{token?}', [ExecutiveBoardController::class, 'index'])->name('executive.board');
+Route::get('/executive/{token?}', function (?string $token = null) {
+    return redirect()->route('executive.board', $token ? ['token' => $token] : []);
+});
 Route::get('/evidences/{evidence}/download', [EvidenceController::class, 'download'])->name('evidences.download');
 
 // Authenticated routes (Accessible by both Admin and Viewer unless restricted)

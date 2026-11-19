@@ -35,8 +35,10 @@ import {
     AlertTriangle,
     ArrowRight,
     Calendar,
+    Check,
     CheckCircle2,
     Clock,
+    Copy,
     Download,
     ExternalLink,
     Eye,
@@ -47,18 +49,31 @@ import {
     Layers,
     LogIn,
     Maximize2,
+    MessageCircle,
     Paperclip,
     Radio,
     RotateCcw,
     Search,
     Server,
+    Share2,
     Shield,
+    ShieldAlert,
+    ShieldCheck,
     Sparkles,
     UserCircle,
 } from 'lucide-react';
 import { formatDate, formatDateTime } from '@/lib/utils';
 
 interface ExecutiveBoardProps extends PageProps {
+    access: {
+        status: 'valid' | 'expired' | 'missing' | 'invalid';
+        message: string;
+        expired_date?: string | null;
+        is_authenticated: boolean;
+        daily_token?: string | null;
+        daily_url?: string | null;
+        whatsapp_message?: string | null;
+    };
     metrics: {
         summary: {
             total_tasks: number;
@@ -89,6 +104,7 @@ interface ExecutiveBoardProps extends PageProps {
         blocked_count: number;
     };
     filters: {
+        token?: string;
         period?: string;
         sort_by?: string;
         status: string;
@@ -100,6 +116,7 @@ interface ExecutiveBoardProps extends PageProps {
 
 export default function ExecutiveBoard({
     auth,
+    access,
     metrics,
     todayPulse,
     inProgressTasks,
@@ -112,6 +129,9 @@ export default function ExecutiveBoard({
 }: ExecutiveBoardProps) {
     const summary = metrics.summary;
     const user = auth.user;
+    const completionRate = summary.total_tasks > 0
+        ? Math.round((summary.completed / summary.total_tasks) * 100)
+        : 0;
 
     const [search, setSearch] = useState(filters.search || '');
     const [selectedCategory, setSelectedCategory] = useState(filters.category_id || '');
@@ -121,53 +141,39 @@ export default function ExecutiveBoard({
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [previewImage, setPreviewImage] = useState<Evidence | null>(null);
 
-    const completionRate = summary.total_tasks > 0
-        ? Math.round((summary.completed / summary.total_tasks) * 100)
-        : 0;
+    const [shareModalOpen, setShareModalOpen] = useState(false);
+    const [copiedLink, setCopiedLink] = useState(false);
+    const [copiedMessage, setCopiedMessage] = useState(false);
+    const [copiedRequestText, setCopiedRequestText] = useState(false);
+
+    const currentToken = filters.token || access.daily_token;
+
+    const navigateWithFilters = (updated: Record<string, any>) => {
+        const routeParams = currentToken ? { token: currentToken } : {};
+        const queryParams = {
+            period: selectedPeriod,
+            sort_by: selectedSort,
+            search,
+            category_id: selectedCategory,
+            status: selectedStatus,
+            ...updated,
+        };
+        router.get(route('executive.board', routeParams), queryParams, { preserveState: true });
+    };
 
     const handlePeriodChange = (newPeriod: string) => {
         setSelectedPeriod(newPeriod);
-        router.get(
-            route('executive.board'),
-            {
-                period: newPeriod,
-                sort_by: selectedSort,
-                search,
-                category_id: selectedCategory,
-                status: selectedStatus,
-            },
-            { preserveState: true }
-        );
+        navigateWithFilters({ period: newPeriod });
     };
 
     const handleSortChange = (newSort: string) => {
         setSelectedSort(newSort);
-        router.get(
-            route('executive.board'),
-            {
-                period: selectedPeriod,
-                sort_by: newSort,
-                search,
-                category_id: selectedCategory,
-                status: selectedStatus,
-            },
-            { preserveState: true }
-        );
+        navigateWithFilters({ sort_by: newSort });
     };
 
     const handleFilterSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(
-            route('executive.board'),
-            {
-                period: selectedPeriod,
-                sort_by: selectedSort,
-                search,
-                category_id: selectedCategory,
-                status: selectedStatus,
-            },
-            { preserveState: true }
-        );
+        navigateWithFilters({});
     };
 
     const handleReset = () => {
@@ -176,7 +182,42 @@ export default function ExecutiveBoard({
         setSelectedStatus('');
         setSelectedPeriod('all');
         setSelectedSort('latest_activity');
-        router.get(route('executive.board'), {}, { preserveState: true });
+        const routeParams = currentToken ? { token: currentToken } : {};
+        router.get(route('executive.board', routeParams), {}, { preserveState: true });
+    };
+
+    const handleCopyLink = () => {
+        if (access.daily_url) {
+            navigator.clipboard.writeText(access.daily_url);
+            setCopiedLink(true);
+            setTimeout(() => setCopiedLink(false), 2500);
+        }
+    };
+
+    const handleCopyMessage = () => {
+        if (access.whatsapp_message) {
+            navigator.clipboard.writeText(access.whatsapp_message);
+            setCopiedMessage(true);
+            setTimeout(() => setCopiedMessage(false), 2500);
+        }
+    };
+
+    const handleCopyRequestMessage = () => {
+        const text = 'Halo Tim DevOps, mohon kirimkan link baru untuk Executive Board hari ini. Terima kasih.';
+        navigator.clipboard.writeText(text);
+        setCopiedRequestText(true);
+        setTimeout(() => setCopiedRequestText(false), 2500);
+    };
+
+    const handleOpenWhatsAppShare = () => {
+        if (access.whatsapp_message) {
+            window.open(`https://wa.me/?text=${encodeURIComponent(access.whatsapp_message)}`, '_blank');
+        }
+    };
+
+    const handleOpenWhatsAppRequest = () => {
+        const text = 'Halo Tim DevOps, mohon kirimkan link baru untuk Executive Board hari ini. Terima kasih.';
+        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
     };
 
     const getActivityBadge = (dateStr?: string) => {
@@ -241,8 +282,127 @@ export default function ExecutiveBoard({
     };
 
     return (
-        <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col">
+        <div className="min-h-screen bg-slate-50/70 dark:bg-slate-950 flex flex-col relative">
             <Head title="Executive Work Board - DevOps Monitor" />
+
+            {/* Guarded Expired / Unauthorized Modal */}
+            {access.status !== 'valid' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
+                    <Card className="max-w-md w-full shadow-2xl border-2 border-border/80 bg-card overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className={`p-6 text-center space-y-4 ${
+                            access.status === 'expired'
+                                ? 'bg-linear-to-b from-amber-500/10 via-background to-background'
+                                : access.status === 'missing'
+                                    ? 'bg-linear-to-b from-blue-500/10 via-background to-background'
+                                    : 'bg-linear-to-b from-red-500/10 via-background to-background'
+                        }`}>
+                            <div className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center border shadow-inner">
+                                {access.status === 'expired' ? (
+                                    <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-300 dark:border-amber-800">
+                                        <Clock className="w-8 h-8 animate-pulse" />
+                                    </div>
+                                ) : access.status === 'missing' ? (
+                                    <div className="w-14 h-14 rounded-2xl bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center border border-blue-300 dark:border-blue-800">
+                                        <ShieldAlert className="w-8 h-8" />
+                                    </div>
+                                ) : (
+                                    <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400 flex items-center justify-center border border-red-300 dark:border-red-800">
+                                        <AlertTriangle className="w-8 h-8" />
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-1.5">
+                                <div className="flex items-center justify-center">
+                                    {access.status === 'expired' && (
+                                        <Badge variant="destructive" className="text-[11px] font-semibold bg-amber-600 hover:bg-amber-600">
+                                            Masa Berlaku Habis (1 Hari)
+                                        </Badge>
+                                    )}
+                                    {access.status === 'missing' && (
+                                        <Badge variant="outline" className="text-[11px] font-semibold border-blue-400 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40">
+                                            Akses Harian Terproteksi
+                                        </Badge>
+                                    )}
+                                    {access.status === 'invalid' && (
+                                        <Badge variant="destructive" className="text-[11px] font-semibold">
+                                            Tautan Tidak Valid
+                                        </Badge>
+                                    )}
+                                </div>
+                                <h2 className="text-xl font-bold tracking-tight text-foreground">
+                                    {access.status === 'expired'
+                                        ? 'Link Sudah Kadaluarsa'
+                                        : access.status === 'missing'
+                                            ? 'Link Akses Harian Diperlukan'
+                                            : 'Tautan Akses Tidak Valid'}
+                                </h2>
+                                <p className="text-xs text-muted-foreground leading-relaxed max-w-sm mx-auto">
+                                    {access.status === 'expired' ? (
+                                        <>
+                                            Link akses Executive Board ini dibuat khusus dengan masa berlaku 1 hari untuk menjaga keamanan informasi dan operasional sistem.
+                                            {access.expired_date && (
+                                                <span className="block mt-1 font-medium text-foreground">
+                                                    Tautan ini telah kadaluarsa pada: <span className="font-semibold text-amber-600 dark:text-amber-400">{access.expired_date}</span>
+                                                </span>
+                                            )}
+                                        </>
+                                    ) : (
+                                        access.message
+                                    )}
+                                </p>
+                            </div>
+
+                            {/* DevOps Contact Callout Box */}
+                            <div className="rounded-xl border border-border/80 bg-muted/40 p-4 text-left space-y-3">
+                                <div className="flex items-center space-x-2 text-xs font-semibold text-foreground">
+                                    <MessageCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                                    <span>Silahkan Hubungi Tim DevOps</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Untuk mendapatkan link akses aktif hari ini, silakan hubungi tim DevOps melalui WhatsApp atau pesan singkat.
+                                </p>
+                                <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                                    <Button
+                                        type="button"
+                                        onClick={handleOpenWhatsAppRequest}
+                                        className="w-full text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold space-x-1.5 shadow-xs"
+                                    >
+                                        <MessageCircle className="w-3.5 h-3.5" />
+                                        <span>Hubungi via WhatsApp</span>
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={handleCopyRequestMessage}
+                                        className="w-full text-xs h-8 space-x-1.5 shadow-xs"
+                                    >
+                                        {copiedRequestText ? (
+                                            <>
+                                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                                <span>Pesan Tersalin!</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                                <span>Salin Pesan</span>
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="pt-2 flex items-center justify-between border-t border-border/60 text-xs text-muted-foreground">
+                                <span>Apakah Anda staf DevOps?</span>
+                                <Link href={route('login')} className="font-semibold text-primary hover:underline flex items-center space-x-1">
+                                    <span>Login Akun</span>
+                                    <ArrowRight className="w-3 h-3" />
+                                </Link>
+                            </div>
+                        </div>
+                    </Card>
+                </div>
+            )}
 
             {/* Top Navigation Bar */}
             <header className="sticky top-0 z-40 bg-card/90 backdrop-blur-md border-b border-border shadow-xs">
@@ -266,6 +426,33 @@ export default function ExecutiveBoard({
 
                     {/* Actions / User Status */}
                     <div className="flex items-center space-x-2 sm:space-x-3 shrink-0">
+                        {/* Daily active badge for guest */}
+                        {access.status === 'valid' && (
+                            <Badge
+                                variant="outline"
+                                className="hidden md:inline-flex text-[11px] font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800 space-x-1.5 py-1 px-2.5 shadow-2xs"
+                                title="Link akses ini berlaku hingga pukul 23:59 WIB"
+                            >
+                                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>Akses Harian Aktif &bull; s/d 23:59 WIB</span>
+                            </Badge>
+                        )}
+
+                        {/* Share to Executive Button */}
+                        {access.daily_url && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setShareModalOpen(true)}
+                                className="text-xs h-8 px-2.5 sm:px-3 space-x-1.5 border-primary/40 text-primary hover:bg-primary/10 shadow-xs"
+                                title="Bagikan link akses hari ini ke atasan atau manajemen"
+                            >
+                                <Share2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Bagikan ke Atasan</span>
+                                <span className="sm:hidden">Bagikan</span>
+                            </Button>
+                        )}
+
                         {user ? (
                             <div className="flex items-center space-x-2 sm:space-x-3">
                                 <div className="text-right hidden sm:block">
@@ -1331,6 +1518,114 @@ export default function ExecutiveBoard({
                                 </div>
                             </div>
                         )}
+                    </DialogContent>
+                </Dialog>
+
+                {/* Share Daily Link Dialog for Atasan */}
+                <Dialog open={shareModalOpen} onOpenChange={setShareModalOpen}>
+                    <DialogContent className="max-w-md">
+                        <DialogHeader>
+                            <div className="flex items-center space-x-2 text-primary">
+                                <div className="p-2 rounded-xl bg-primary/10 text-primary">
+                                    <Share2 className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <DialogTitle className="text-base font-bold">
+                                        Bagikan Link Akses Hari Ini
+                                    </DialogTitle>
+                                    <DialogDescription className="text-xs">
+                                        Tautan khusus atasan/manajemen dengan masa berlaku 1 hari (tanpa login).
+                                    </DialogDescription>
+                                </div>
+                            </div>
+                        </DialogHeader>
+
+                        <div className="space-y-4 pt-2 text-xs">
+                            {/* Validity Badge */}
+                            <div className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200">
+                                <div className="flex items-center space-x-2">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                                    <span className="font-semibold text-xs">Aktif Hari Ini</span>
+                                </div>
+                                <span className="text-[11px] font-mono font-medium">Berlaku s/d 23:59 WIB</span>
+                            </div>
+
+                            {/* URL Copy input */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-foreground">
+                                    URL Akses Executive Board Hari Ini:
+                                </label>
+                                <div className="flex items-center space-x-2">
+                                    <Input
+                                        readOnly
+                                        value={access.daily_url || ''}
+                                        className="h-8 text-xs font-mono select-all bg-muted/40"
+                                    />
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={handleCopyLink}
+                                        className="h-8 text-xs space-x-1 shrink-0"
+                                    >
+                                        {copiedLink ? (
+                                            <>
+                                                <Check className="w-3.5 h-3.5" />
+                                                <span>Tersalin</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Copy className="w-3.5 h-3.5" />
+                                                <span>Salin</span>
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </div>
+
+                            {/* WhatsApp message preview */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-semibold text-foreground">
+                                    Pesan Siap Kirim (WhatsApp):
+                                </label>
+                                <div className="p-2.5 rounded-lg bg-muted/50 border border-border/80 text-[11px] text-muted-foreground font-sans whitespace-pre-wrap leading-relaxed">
+                                    {access.whatsapp_message}
+                                </div>
+                            </div>
+
+                            {/* Action buttons */}
+                            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                                <Button
+                                    type="button"
+                                    onClick={handleOpenWhatsAppShare}
+                                    className="w-full text-xs h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold space-x-1.5 shadow-xs"
+                                >
+                                    <MessageCircle className="w-3.5 h-3.5" />
+                                    <span>Kirim ke WhatsApp Atasan</span>
+                                </Button>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleCopyMessage}
+                                    className="w-full text-xs h-8 space-x-1.5 shadow-xs"
+                                >
+                                    {copiedMessage ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                            <span>Pesan Tersalin!</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5 text-muted-foreground" />
+                                            <span>Salin Pesan</span>
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
+
+                            <p className="text-[10px] text-muted-foreground text-center pt-1 border-t border-border/60">
+                                Setiap tengah malam (00:00 WIB), sistem secara otomatis menghasilkan token baru. Link kemarin otomatis kadaluarsa.
+                            </p>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </main>

@@ -8,6 +8,8 @@ use App\Enums\UserRole;
 use App\Models\Category;
 use App\Models\Task;
 use App\Models\User;
+use App\Services\ExecutiveAccessService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,13 +49,16 @@ class ExecutiveBoardTest extends TestCase
         ]);
     }
 
-    public function test_guest_can_access_executive_board_without_login(): void
+    public function test_guest_with_valid_daily_token_can_access_executive_board(): void
     {
-        $response = $this->get('/board');
+        $dailyToken = ExecutiveAccessService::generateDailyToken();
+        $response = $this->get('/board/' . $dailyToken);
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => 
             $page->component('Executive/Board')
+                ->where('access.status', 'valid')
+                ->where('access.daily_token', $dailyToken)
                 ->has('metrics')
                 ->has('inProgressTasks')
                 ->has('blockedTasks')
@@ -62,28 +67,91 @@ class ExecutiveBoardTest extends TestCase
         );
     }
 
-    public function test_executive_board_alias_redirects_to_board(): void
+    public function test_guest_without_token_sees_missing_token_status_with_guarded_data(): void
     {
-        $response = $this->get('/executive');
+        $response = $this->get('/board');
 
-        $response->assertRedirect('/board');
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => 
+            $page->component('Executive/Board')
+                ->where('access.status', 'missing')
+                ->where('inProgressTasks', [])
+                ->where('blockedTasks', [])
+                ->where('recentlyCompleted', [])
+                ->where('tasks.data', [])
+        );
     }
 
-    public function test_authenticated_admin_can_access_executive_board(): void
+    public function test_guest_with_expired_token_sees_expired_popup_status(): void
+    {
+        $yesterday = Carbon::yesterday('Asia/Jakarta');
+        $yesterdayToken = ExecutiveAccessService::generateDailyToken($yesterday);
+
+        $response = $this->get('/board/' . $yesterdayToken);
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => 
+            $page->component('Executive/Board')
+                ->where('access.status', 'expired')
+                ->where('access.daily_token', $yesterdayToken)
+                ->where('access.message', 'Link sudah kadaluarsa. Silahkan Hubungi Tim DevOps untuk meminta link yang baru.')
+                ->where('inProgressTasks', [])
+        );
+    }
+
+    public function test_guest_with_invalid_token_sees_invalid_status(): void
+    {
+        $response = $this->get('/board/20261119-fakehash123456');
+
+        $response->assertOk();
+        $response->assertInertia(fn ($page) => 
+            $page->component('Executive/Board')
+                ->where('access.status', 'invalid')
+                ->where('inProgressTasks', [])
+        );
+    }
+
+    public function test_daily_token_is_unique_per_day(): void
+    {
+        $tokenToday = ExecutiveAccessService::generateDailyToken(Carbon::today('Asia/Jakarta'));
+        $tokenTomorrow = ExecutiveAccessService::generateDailyToken(Carbon::tomorrow('Asia/Jakarta'));
+        $tokenYesterday = ExecutiveAccessService::generateDailyToken(Carbon::yesterday('Asia/Jakarta'));
+
+        $this->assertNotEquals($tokenToday, $tokenTomorrow);
+        $this->assertNotEquals($tokenToday, $tokenYesterday);
+        $this->assertNotEquals($tokenTomorrow, $tokenYesterday);
+    }
+
+    public function test_executive_board_alias_redirects_to_board_preserving_token(): void
+    {
+        $dailyToken = ExecutiveAccessService::generateDailyToken();
+        $response = $this->get('/executive/' . $dailyToken);
+
+        $response->assertRedirect('/board/' . $dailyToken);
+    }
+
+    public function test_authenticated_admin_can_access_executive_board_without_token(): void
     {
         $response = $this->actingAs($this->admin)->get('/board');
 
         $response->assertOk();
-        $response->assertInertia(fn ($page) => $page->component('Executive/Board'));
+        $response->assertInertia(fn ($page) => 
+            $page->component('Executive/Board')
+                ->where('access.status', 'valid')
+                ->where('access.is_authenticated', true)
+                ->has('access.daily_url')
+        );
     }
 
     public function test_executive_board_filters_by_category(): void
     {
-        $response = $this->get('/board?category_id=' . $this->category->id);
+        $dailyToken = ExecutiveAccessService::generateDailyToken();
+        $response = $this->get('/board/' . $dailyToken . '?category_id=' . $this->category->id);
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => 
             $page->where('filters.category_id', (string) $this->category->id)
+                ->where('access.status', 'valid')
         );
     }
 
@@ -119,7 +187,8 @@ class ExecutiveBoardTest extends TestCase
 
     public function test_executive_board_supports_period_filter_today_and_sorting(): void
     {
-        $response = $this->get('/board?period=today&sort_by=latest_activity');
+        $dailyToken = ExecutiveAccessService::generateDailyToken();
+        $response = $this->get('/board/' . $dailyToken . '?period=today&sort_by=latest_activity');
 
         $response->assertOk();
         $response->assertInertia(fn ($page) => 

@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\Task;
 use App\Models\TaskUpdate;
 use App\Services\DashboardService;
+use App\Services\ExecutiveAccessService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -20,9 +21,71 @@ class ExecutiveBoardController extends Controller
 
     public function index(Request $request): Response
     {
+        $today = Carbon::today('Asia/Jakarta');
+        $token = $request->route('token') ?? $request->query('token');
+
+        // Validate daily unique token or authenticated session
+        $validation = ExecutiveAccessService::validateToken($token, auth()->check());
+
+        // If access is not valid (e.g. expired, missing, or invalid), return guarded state with no data leakage
+        if ($validation['status'] !== 'valid') {
+            return Inertia::render('Executive/Board', [
+                'access' => [
+                    'status' => $validation['status'],
+                    'message' => $validation['message'],
+                    'expired_date' => $validation['expired_date'] ?? null,
+                    'is_authenticated' => false,
+                    'daily_token' => $token,
+                    'daily_url' => null,
+                    'whatsapp_message' => null,
+                ],
+                'metrics' => [
+                    'summary' => [
+                        'total_tasks' => 0,
+                        'completed' => 0,
+                        'in_progress' => 0,
+                        'blocked' => 0,
+                        'backlog' => 0,
+                        'cancelled' => 0,
+                        'overdue' => 0,
+                        'active_assets' => 0,
+                        'maintenance_assets' => 0,
+                    ],
+                    'categories' => [],
+                    'priorities' => ['critical' => 0, 'high' => 0, 'medium' => 0, 'low' => 0],
+                    'recent_activities' => [],
+                    'due_soon_tasks' => [],
+                    'filters' => [],
+                ],
+                'todayPulse' => [
+                    'date_formatted' => $today->locale('id')->isoFormat('dddd, D MMMM Y'),
+                    'activities_count' => 0,
+                    'completed_count' => 0,
+                    'blocked_count' => 0,
+                ],
+                'inProgressTasks' => [],
+                'blockedTasks' => [],
+                'recentlyCompleted' => [],
+                'tasks' => [
+                    'data' => [],
+                    'links' => [],
+                    'total' => 0,
+                ],
+                'categories' => [],
+                'filters' => [
+                    'token' => $token ?? '',
+                    'period' => 'all',
+                    'sort_by' => 'latest_activity',
+                    'status' => '',
+                    'category_id' => '',
+                    'search' => '',
+                ],
+                'currentTime' => Carbon::now('Asia/Jakarta')->format('d M Y, H:i') . ' WIB',
+            ]);
+        }
+
         $metrics = $this->dashboardService->getMetrics();
 
-        $today = Carbon::today('Asia/Jakarta');
         $todayString = $today->toDateString();
         $startOfWeek = $today->copy()->startOfWeek()->toDateString();
         $endOfWeek = $today->copy()->endOfWeek()->toDateString();
@@ -78,22 +141,22 @@ class ExecutiveBoardController extends Controller
                     $query->orderByRaw("CASE WHEN due_date IS NULL THEN 1 ELSE 0 END, due_date ASC");
                     break;
                 case 'priority':
-                    $query->orderByRaw("CASE priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 ELSE 4 END")
-                          ->orderBy('updated_at', 'desc');
+                    $query->orderByRaw("CASE 
+                        WHEN priority = 'critical' THEN 1 
+                        WHEN priority = 'high' THEN 2 
+                        WHEN priority = 'medium' THEN 3 
+                        WHEN priority = 'low' THEN 4 
+                        ELSE 5 END");
                     break;
                 case 'created_at':
                     $query->orderBy('created_at', 'desc');
                     break;
                 case 'latest_activity':
                 default:
-                    $query->select('tasks.*')
-                          ->selectSub(
-                              TaskUpdate::selectRaw('COALESCE(MAX(activity_date), tasks.created_at)')
-                                  ->whereColumn('task_updates.task_id', 'tasks.id'),
-                              'last_activity'
-                          )
-                          ->orderByDesc('last_activity')
-                          ->orderByDesc('tasks.updated_at');
+                    // Sort by the latest task update activity_date, fallback to task created_at
+                    $latestActivitySubquery = TaskUpdate::selectRaw('COALESCE(MAX(activity_date), tasks.created_at)')
+                        ->whereColumn('task_updates.task_id', 'tasks.id');
+                    $query->orderByDesc($latestActivitySubquery)->orderBy('tasks.created_at', 'desc');
                     break;
             }
         };
@@ -145,7 +208,21 @@ class ExecutiveBoardController extends Controller
 
         $categories = Category::where('is_active', true)->orderBy('name')->get(['id', 'name']);
 
+        $activeDailyToken = $validation['daily_token'] ?? ExecutiveAccessService::generateDailyToken($today);
+        $dailyUrl = url('/board/' . $activeDailyToken);
+        $formattedDate = $today->locale('id')->isoFormat('dddd, D MMMM Y');
+        $whatsappMessage = "Halo Pak/Bu, berikut link pemantauan DevOps Executive Board untuk hari ini ({$formattedDate}): {$dailyUrl}\n\n(Catatan: Link berlaku khusus 1 hari demi menjaga keamanan data operasional).";
+
         return Inertia::render('Executive/Board', [
+            'access' => [
+                'status' => 'valid',
+                'message' => $validation['message'] ?? 'Akses aktif.',
+                'expired_date' => null,
+                'is_authenticated' => auth()->check(),
+                'daily_token' => $activeDailyToken,
+                'daily_url' => $dailyUrl,
+                'whatsapp_message' => $whatsappMessage,
+            ],
             'metrics' => $metrics,
             'todayPulse' => $todayPulse,
             'inProgressTasks' => $inProgressTasks,
@@ -154,6 +231,7 @@ class ExecutiveBoardController extends Controller
             'tasks' => $tasks,
             'categories' => $categories,
             'filters' => [
+                'token' => $token ?? '',
                 'period' => $period,
                 'sort_by' => $sortBy,
                 'status' => $request->input('status', ''),

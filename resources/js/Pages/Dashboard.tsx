@@ -28,14 +28,18 @@ import {
     AlertTriangle,
     ArrowUpRight,
     Calendar,
+    Check,
     CheckCircle2,
     Clock,
+    Copy,
     FileText,
     Filter,
     Layers,
+    MessageCircle,
     PlusCircle,
     RotateCcw,
     Server,
+    Share2,
     Sparkles,
     TrendingUp,
 } from 'lucide-react';
@@ -54,6 +58,12 @@ import { formatDate } from '@/lib/utils';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 interface DashboardProps extends PageProps {
+    executiveBoard?: {
+        token: string;
+        url: string;
+        date_formatted: string;
+        whatsapp_message: string;
+    };
     metrics: {
         summary: {
             total_tasks: number;
@@ -110,11 +120,26 @@ interface DashboardProps extends PageProps {
     };
 }
 
-export default function Dashboard({ auth, metrics }: DashboardProps) {
+export default function Dashboard({ auth, metrics, executiveBoard }: DashboardProps) {
     const summary = metrics.summary;
     const user = auth.user;
     const [startDate, setStartDate] = useState(metrics.filters.start_date || '');
     const [endDate, setEndDate] = useState(metrics.filters.end_date || '');
+    const [copiedExecutiveLink, setCopiedExecutiveLink] = useState(false);
+
+    const handleCopyExecutiveLink = () => {
+        if (executiveBoard?.url) {
+            navigator.clipboard.writeText(executiveBoard.url);
+            setCopiedExecutiveLink(true);
+            setTimeout(() => setCopiedExecutiveLink(false), 2500);
+        }
+    };
+
+    const handleShareWhatsApp = () => {
+        if (executiveBoard?.whatsapp_message) {
+            window.open(`https://wa.me/?text=${encodeURIComponent(executiveBoard.whatsapp_message)}`, '_blank');
+        }
+    };
 
     const handleFilter = (e: React.FormEvent) => {
         e.preventDefault();
@@ -179,6 +204,50 @@ export default function Dashboard({ auth, metrics }: DashboardProps) {
     return (
         <AuthenticatedLayout>
             <Head title="Dashboard - DevOps Work Tracker" />
+
+            {/* Executive Board Share Banner */}
+            {executiveBoard && (
+                <div className="rounded-xl border border-border/80 bg-linear-to-r from-card via-card to-sky-50/50 dark:to-sky-950/20 p-3 sm:p-3.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center space-x-3">
+                        <div className="p-2 rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400 shrink-0">
+                            <Share2 className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <div className="flex items-center space-x-2">
+                                <span className="font-bold text-xs sm:text-sm text-foreground">
+                                    Link Akses Executive Board Hari Ini
+                                </span>
+                                <Badge variant="outline" className="text-[10px] font-mono border-sky-300 text-sky-700 dark:text-sky-300">
+                                    {executiveBoard.date_formatted}
+                                </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Link khusus 1 hari untuk atasan/manajemen (tanpa perlu login). Berganti otomatis pukul 00:00 WIB.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2 shrink-0">
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleCopyExecutiveLink}
+                            className="h-8 text-xs space-x-1.5 shadow-2xs"
+                        >
+                            {copiedExecutiveLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                            <span>{copiedExecutiveLink ? 'Tersalin!' : 'Salin Link'}</span>
+                        </Button>
+                        <Button
+                            size="sm"
+                            onClick={handleShareWhatsApp}
+                            className="h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-semibold space-x-1.5 shadow-2xs"
+                        >
+                            <MessageCircle className="w-3.5 h-3.5" />
+                            <span className="hidden sm:inline">Kirim ke WhatsApp</span>
+                            <span className="sm:hidden">WhatsApp</span>
+                        </Button>
+                    </div>
+                </div>
+            )}
 
             {/* Overdue Warning Alert */}
             {summary.overdue > 0 && (
